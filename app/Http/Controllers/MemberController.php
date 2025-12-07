@@ -44,7 +44,10 @@ class MemberController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // Normalize camelCase to snake_case
+        $data = $this->normalizeRequestData($request->all());
+        
+        $validated = validator($data, [
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'mobile' => 'nullable|string|max:20',
@@ -70,7 +73,7 @@ class MemberController extends Controller
             'member_number' => 'nullable|string|unique:members|max:255',
             'has_website_account' => 'boolean',
             'should_mail' => 'boolean',
-        ]);
+        ])->validate();
 
         $member = Member::create($validated);
         return response()->json($member, 201);
@@ -92,7 +95,10 @@ class MemberController extends Controller
      */
     public function update(Request $request, Member $member)
     {
-        $validated = $request->validate([
+        // Normalize camelCase to snake_case
+        $data = $this->normalizeRequestData($request->all());
+        
+        $validated = validator($data, [
             'first_name' => 'sometimes|string|max:255',
             'last_name' => 'sometimes|string|max:255',
             'mobile' => 'nullable|string|max:20',
@@ -118,7 +124,7 @@ class MemberController extends Controller
             'member_number' => 'nullable|string|unique:members,member_number,' . $member->id . '|max:255',
             'has_website_account' => 'boolean',
             'should_mail' => 'boolean',
-        ]);
+        ])->validate();
 
         $member->update($validated);
         return response()->json($member);
@@ -187,6 +193,7 @@ class MemberController extends Controller
             ];
         });
     }
+
 
     private function formatMemberDetails(Member $member)
     {
