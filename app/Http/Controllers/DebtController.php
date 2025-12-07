@@ -81,6 +81,45 @@ class DebtController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * Display a paginated listing of debts for a specific member.
+     */
+    public function byMember(Request $request, int $memberId, string $status = 'open')
+    {
+        $query = Debt::with('member')
+            ->where('member_id', $memberId);
+
+        if ($status === 'closed') {
+            $query->whereIn('status', ['paid', 'cancelled']);
+        } else {
+            $query->whereIn('status', ['pending', 'overdue']);
+        }
+
+        $sortColumn = $request->get('sort', 'created_at');
+        $sortDirection = str_starts_with($sortColumn, '-') ? 'desc' : 'asc';
+        $sortColumn = ltrim($sortColumn, '-');
+
+        $sortMap = [
+            'amount' => 'amount',
+            'dueDate' => 'due_date',
+            'status' => 'status',
+        ];
+
+        $dbColumn = $sortMap[$sortColumn] ?? 'created_at';
+        $query->orderBy($dbColumn, $sortDirection);
+
+        $debts = $query->paginate(15);
+        $rows = $this->formatDebtRows($debts->getCollection());
+
+        return response()->json([
+            'rows' => $rows,
+            'counts' => [
+                'totalRows' => $debts->total(),
+                'totalPages' => $debts->lastPage(),
+            ],
+        ]);
+    }
+
     private function buildDebtQuery(Request $request)
     {
         $query = Debt::with('member');
