@@ -14,6 +14,7 @@ class MemberCreditCard extends Model
         'expiration',
         'first_name',
         'last_name',
+        'is_default'
     ];
 
     public function member(): BelongsTo

@@ -81,4 +81,20 @@ class MemberCreditCardController extends Controller
 
         return response()->json(null, 204);
     }
+
+    /**
+     * Set a credit card as the default for a member.
+     */
+    public function setDefault(int $memberId, int $id)
+    {
+        $creditCard = MemberCreditCard::where('member_id', $memberId)
+            ->findOrFail($id);
+
+        MemberCreditCard::where('member_id', $memberId)
+            ->update(['is_default' => 0]);
+
+        $creditCard->update(['is_default' => 1]);
+
+        return response()->json(['message' => 'Credit card set as default.']);
+    }
 }

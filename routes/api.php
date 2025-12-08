@@ -48,6 +48,7 @@ Route::post('members/{memberId}/credit-cards', [MemberCreditCardController::clas
 Route::get('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'show']);
 Route::put('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'update']);
 Route::delete('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'destroy']);
+Route::put('members/{memberId}/credit-cards/{id}/set-default', [MemberCreditCardController::class, 'setDefault']);
 
 // Generic routes
 Route::get('banks', [GenericController::class, 'banks']);
