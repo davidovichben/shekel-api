@@ -102,6 +102,6 @@ class Member extends Model
 
     public function groups(): BelongsToMany
     {
-        return $this->belongsToMany(Group::class, 'member_group');
+        return $this->belongsToMany(Group::class, 'member_groups');
     }
 }
