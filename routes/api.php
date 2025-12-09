@@ -19,13 +19,15 @@ Route::post('logout', [AuthController::class, 'logout']);
 Route::post('logout-all', [AuthController::class, 'logoutAll']);
 Route::get('user', [AuthController::class, 'user']);
 
+Route::delete('members/bulk', [MemberController::class, 'bulkDestroy']);
+
 // Resource routes
 Route::apiResource('members', MemberController::class);
 Route::apiResource('receipts', ReceiptController::class);
 
 // Additional member routes
 Route::get('members/type/{type}', [MemberController::class, 'byType']);
-Route::get('members/export', [MemberController::class, 'export']);
+Route::post('members/export', [MemberController::class, 'export']);
 Route::get('members-with-accounts', [MemberController::class, 'withWebsiteAccounts']);
 Route::get('members-mail-list', [MemberController::class, 'mailList']);
 

@@ -133,11 +133,34 @@ class MemberController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * Remove multiple members from storage.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:members,id',
+        ]);
+
+        Member::whereIn('id', $validated['ids'])->delete();
+
+        return response()->json(null, 204);
+    }
 
     public function export(Request $request)
     {
-        $query = $this->buildMemberQuery($request);
-        $members = $query->get();
+        $validated = $request->validate([
+            'ids' => 'nullable|array',
+            'ids.*' => 'integer|exists:members,id',
+        ]);
+
+        if (!empty($validated['ids'])) {
+            $members = Member::with('groups')->whereIn('id', $validated['ids'])->get();
+        } else {
+            $query = $this->buildMemberQuery($request);
+            $members = $query->get();
+        }
 
         $rows = $this->formatMemberRows($members, true);
 
@@ -173,17 +196,36 @@ class MemberController extends Controller
 
     private function formatMemberRows($members, $forExport = false)
     {
-        return $members->map(function ($member) use ($forExport) {
+        $typeLabels = [
+            'permanent' => 'קבוע',
+            'family_member' => 'בן משפחה',
+            'guest' => 'אורח',
+            'supplier' => 'ספק',
+            'other' => 'אחר',
+            'primary_admin' => 'מנהל ראשי',
+            'secondary_admin' => 'מנהל משני',
+        ];
+
+        return $members->map(function ($member) use ($forExport, $typeLabels) {
+            if ($forExport) {
+                return [
+                    $member->full_name,
+                    $typeLabels[$member->type] ?? $member->type,
+                    $member->balance,
+                    $member->mobile,
+                    $member->last_message_date,
+                    $member->groups->pluck('name')->implode(', '),
+                ];
+            }
+
             return [
-                "id"    => $member->id,
+                'id' => $member->id,
                 'fullName' => $member->full_name,
                 'type' => $member->type ? Str::camel($member->type) : null,
                 'balance' => $member->balance,
                 'mobile' => $member->mobile,
                 'lastMessageDate' => $member->last_message_date,
-                'groups' => $forExport
-                    ? $member->groups->pluck('name')->implode(', ')
-                    : $member->groups->pluck('name'),
+                'groups' => $member->groups->pluck('name'),
             ];
         });
     }
