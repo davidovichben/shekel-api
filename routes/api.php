@@ -6,6 +6,8 @@ use App\Http\Controllers\GenericController;
 use App\Http\Controllers\MemberBankDetailsController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MemberCreditCardController;
+use App\Http\Controllers\GroupController;
+use App\Http\Controllers\MemberBillingSettingsController;
 use App\Http\Controllers\MemberGroupController;
 use App\Http\Controllers\ReceiptController;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +50,15 @@ Route::post('members/{memberId}/credit-cards', [MemberCreditCardController::clas
 Route::get('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'show']);
 Route::put('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'update']);
 Route::delete('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'destroy']);
+Route::put('members/{memberId}/credit-cards/{id}/set-default', [MemberCreditCardController::class, 'setDefault']);
+
+// Group routes
+Route::get('members/{memberId}/available-groups', [GroupController::class, 'index']);
+Route::post('groups', [GroupController::class, 'store']);
+
+// Member billing settings routes
+Route::get('members/{memberId}/billing-settings', [MemberBillingSettingsController::class, 'show']);
+Route::put('members/{memberId}/billing-settings', [MemberBillingSettingsController::class, 'update']);
 
 // Generic routes
 Route::get('banks', [GenericController::class, 'banks']);

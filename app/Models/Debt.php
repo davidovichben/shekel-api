@@ -5,17 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class MemberCreditCard extends Model
+class Debt extends Model
 {
     protected $fillable = [
         'member_id',
-        'last_digits',
-        'company',
-        'expiration',
-        'first_name',
-        'last_name',
-        'is_default'
+        'amount',
+        'description',
+        'due_date',
+        'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'amount' => 'decimal:2',
+            'due_date' => 'date',
+        ];
+    }
 
     public function member(): BelongsTo
     {
