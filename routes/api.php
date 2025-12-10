@@ -20,6 +20,7 @@ Route::post('logout-all', [AuthController::class, 'logoutAll']);
 Route::get('user', [AuthController::class, 'user']);
 
 Route::delete('members/bulk', [MemberController::class, 'bulkDestroy']);
+Route::get('members/list', [MemberController::class, 'list']);
 
 // Resource routes
 Route::apiResource('members', MemberController::class);

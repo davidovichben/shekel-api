@@ -2,72 +2,39 @@
 
 namespace Database\Seeders;
 
+use App\Models\Member;
+use App\Models\MemberCreditCard;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use Faker\Factory as Faker;
 
 class MemberCreditCardSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        DB::table('member_credit_cards')->insert([
-            [
-                'member_id' => 51,
-                'token' => '1234567890123456789',
-                'last_digits' => '4532',
-                'company' => 'Visa',
-                'expiration' => '12/27',
-                'full_name' => 'John Doe',
-                'is_default' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'member_id' => 51,
-                'token' => '9876543210987654321',
-                'last_digits' => '8721',
-                'company' => 'Mastercard',
-                'expiration' => '03/26',
-                'full_name' => 'John Doe',
-                'is_default' => false,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'member_id' => 51,
-                'token' => '5678901234567890123',
-                'last_digits' => '1234',
-                'company' => 'Amex',
-                'expiration' => '09/28',
-                'full_name' => 'John Doe',
-                'is_default' => false,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'member_id' => 51,
-                'token' => '3456789012345678901',
-                'last_digits' => '5678',
-                'company' => 'Visa',
-                'expiration' => '06/25',
-                'full_name' => 'John Doe',
-                'is_default' => false,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'member_id' => 51,
-                'token' => '7890123456789012345',
-                'last_digits' => '9012',
-                'company' => 'Mastercard',
-                'expiration' => '11/26',
-                'full_name' => 'John Doe',
-                'is_default' => false,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        $faker = Faker::create();
+        $companies = ['Visa', 'Mastercard', 'Amex', 'Diners'];
+        $members = Member::inRandomOrder()->limit(40)->get();
+
+        foreach ($members as $member) {
+            $numCards = $faker->numberBetween(1, 3);
+            $hasDefault = false;
+
+            for ($i = 0; $i < $numCards; $i++) {
+                $isDefault = !$hasDefault && $faker->boolean(70);
+                if ($isDefault) {
+                    $hasDefault = true;
+                }
+
+                MemberCreditCard::create([
+                    'member_id' => $member->id,
+                    'token' => $faker->numerify('####################'),
+                    'last_digits' => $faker->numerify('####'),
+                    'company' => $faker->randomElement($companies),
+                    'expiration' => $faker->numerify('##') . '/' . $faker->numberBetween(25, 30),
+                    'full_name' => $member->first_name . ' ' . $member->last_name,
+                    'is_default' => $isDefault,
+                ]);
+            }
+        }
     }
 }

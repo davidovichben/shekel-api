@@ -13,15 +13,14 @@ return new class extends Migration
     {
         Schema::create('invoices', function (Blueprint $table) {
             $table->id();
-            $table->string('invoice_number')->unique();
             $table->foreignId('member_id')->constrained()->onDelete('cascade');
+            $table->string('invoice_number')->unique();
             $table->decimal('total_amount', 10, 2);
             $table->decimal('tax_amount', 10, 2)->nullable();
             $table->decimal('subtotal', 10, 2);
-            $table->enum('status', ['pending', 'paid', 'cancelled', 'refunded', 'overdue'])->default('pending');
-            $table->string('payment_method')->nullable();
-            $table->timestamp('invoice_date');
-            $table->date('due_date')->nullable();
+            $table->enum('payment_method', ['credit_card', 'bank', 'bit', 'cash', 'cheque'])->nullable();
+            $table->date('gregorian_date');
+            $table->string('hebrew_date')->nullable();
             $table->date('paid_date')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();

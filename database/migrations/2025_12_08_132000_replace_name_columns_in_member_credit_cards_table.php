@@ -12,8 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('member_credit_cards', function (Blueprint $table) {
-            $table->dropColumn(['first_name', 'last_name']);
-            $table->string('full_name')->after('expiration');
+            if (Schema::hasColumn('member_credit_cards', 'first_name')) {
+                $table->dropColumn('first_name');
+            }
+            if (Schema::hasColumn('member_credit_cards', 'last_name')) {
+                $table->dropColumn('last_name');
+            }
+            if (!Schema::hasColumn('member_credit_cards', 'full_name')) {
+                $table->string('full_name')->after('expiration');
+            }
         });
     }
 

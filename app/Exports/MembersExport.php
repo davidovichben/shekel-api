@@ -50,6 +50,12 @@ class MembersExport implements FromCollection, WithHeadings, WithColumnWidths, W
     {
         $sheet->setRightToLeft(true);
 
+        $sheet->getStyle($sheet->calculateWorksheetDimension())->applyFromArray([
+            'font' => [
+                'name' => 'DejaVu Sans',
+            ],
+        ]);
+
         return [];
     }
 }

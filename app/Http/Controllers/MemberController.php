@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\MembersExport;
+use App\Exports\MembersPdfExport;
 use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -23,7 +24,6 @@ class MemberController extends Controller
             ->where('type', '!=', '')
             ->groupBy('type')
             ->pluck('count', 'type')
-            ->mapWithKeys(fn ($count, $type) => [Str::camel($type) => $count])
             ->toArray();
 
         $rows = $this->formatMemberRows($members->getCollection());
@@ -32,12 +32,31 @@ class MemberController extends Controller
             'rows' => $rows,
             'counts' => [
                 'types' => $typeCounts,
-                'totalRows' => $members->total(),
-                'totalPages' => $members->lastPage(),
+                'total_rows' => $members->total(),
+                'total_pages' => $members->lastPage(),
             ],
         ]);
     }
 
+    /**
+     * Get a simple list of members with only id and name.
+     */
+    public function list(Request $request)
+    {
+        $query = Member::select('id', 'first_name', 'last_name');
+
+        if ($request->has('search')) {
+            $name = $request->search;
+            $query->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$name}%"]);
+        }
+
+        $members = $query->orderBy('first_name')->limit(30)->get();
+
+        return response()->json($members->map(fn ($member) => [
+            'id' => $member->id,
+            'name' => trim("{$member->first_name} {$member->last_name}"),
+        ]));
+    }
 
     /**
      * Store a newly created member in storage.
@@ -50,7 +69,6 @@ class MemberController extends Controller
             'mobile' => 'nullable|string|max:20',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
-            'gender' => 'nullable|in:male,female,other',
             'address' => 'nullable|string|max:500',
             'address_2' => 'nullable|string|max:500',
             'city' => 'nullable|string|max:255',
@@ -98,7 +116,6 @@ class MemberController extends Controller
             'mobile' => 'nullable|string|max:20',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
-            'gender' => 'nullable|in:male,female,other',
             'address' => 'nullable|string|max:500',
             'address_2' => 'nullable|string|max:500',
             'city' => 'nullable|string|max:255',
@@ -153,18 +170,62 @@ class MemberController extends Controller
         $validated = $request->validate([
             'ids' => 'nullable|array',
             'ids.*' => 'integer|exists:members,id',
+            'type' => 'nullable|string|in:permanent,family_member,guest,supplier,other,primary_admin,secondary_admin',
+            'file_type' => 'required|string|in:pdf,xls,csv',
         ]);
 
         if (!empty($validated['ids'])) {
-            $members = Member::with('groups')->whereIn('id', $validated['ids'])->get();
+            $query = Member::with('groups')->whereIn('id', $validated['ids']);
         } else {
             $query = $this->buildMemberQuery($request);
-            $members = $query->get();
+        }
+
+        if (!empty($validated['type'])) {
+            $query->where('type', $validated['type']);
+        }
+
+        $members = $query->get();
+        $fileType = $validated['file_type'];
+
+        if ($fileType === 'pdf') {
+            $rows = $this->formatMemberRowsForPdf($members);
+            return Excel::download(new MembersPdfExport($rows), 'members.pdf', \Maatwebsite\Excel\Excel::MPDF);
         }
 
         $rows = $this->formatMemberRows($members, true);
 
-        return Excel::download(new MembersExport($rows), 'members.xlsx');
+        $writerType = match ($fileType) {
+            'xls' => \Maatwebsite\Excel\Excel::XLSX,
+            'csv' => \Maatwebsite\Excel\Excel::CSV,
+        };
+
+        $extension = $fileType === 'xls' ? 'xlsx' : $fileType;
+
+        return Excel::download(new MembersExport($rows), "members.{$extension}", $writerType);
+    }
+
+    private function formatMemberRowsForPdf($members)
+    {
+        $typeLabels = [
+            'permanent' => 'קבוע',
+            'family_member' => 'בן משפחה',
+            'guest' => 'אורח',
+            'supplier' => 'ספק',
+            'other' => 'אחר',
+            'primary_admin' => 'מנהל ראשי',
+            'secondary_admin' => 'מנהל משני',
+        ];
+
+        return $members->map(function ($member) use ($typeLabels) {
+            return [
+                $member->groups->pluck('name')->implode(', '),
+                $member->last_message_date,
+                $member->mobile,
+                $member->balance,
+                $typeLabels[$member->type] ?? $member->type,
+                $member->full_name,
+            ];
+        });
     }
 
 
@@ -176,11 +237,25 @@ class MemberController extends Controller
             $query->where('type', $request->type);
         }
 
-        $sortColumn = $request->get('sort', 'created_at');
-        $sortDirection = str_starts_with($sortColumn, '-') ? 'desc' : 'asc';
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"])
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('mobile', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('city', 'like', "%{$search}%")
+                    ->orWhere('member_number', 'like', "%{$search}%");
+            });
+        }
+
+        $sortColumn = $request->get('sortBy', $request->get('sort', 'id'));
         $sortColumn = ltrim($sortColumn, '-');
+        $sortDirection = $request->get('sortOrder', 'desc');
 
         $sortMap = [
+            'id' => 'id',
             'fullName' => 'first_name',
             'type' => 'type',
             'balance' => 'balance',
@@ -188,7 +263,7 @@ class MemberController extends Controller
             'lastMessageDate' => 'last_message_date',
         ];
 
-        $dbColumn = $sortMap[$sortColumn] ?? 'created_at';
+        $dbColumn = $sortMap[$sortColumn] ?? 'id';
         $query->orderBy($dbColumn, $sortDirection);
 
         return $query;
@@ -221,7 +296,7 @@ class MemberController extends Controller
             return [
                 'id' => $member->id,
                 'fullName' => $member->full_name,
-                'type' => $member->type ? Str::camel($member->type) : null,
+                'type' => $member->type,
                 'balance' => $member->balance,
                 'mobile' => $member->mobile,
                 'lastMessageDate' => $member->last_message_date,
@@ -240,7 +315,6 @@ class MemberController extends Controller
             'mobile' => $member->mobile,
             'phone' => $member->phone,
             'email' => $member->email,
-            'gender' => $member->gender,
             'address' => $member->address,
             'address2' => $member->address_2,
             'city' => $member->city,
