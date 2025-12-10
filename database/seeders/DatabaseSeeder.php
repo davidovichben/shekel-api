@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,19 +14,32 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create test user
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            // Base tables (no dependencies)
+            UserSeeder::class,
+            BankSeeder::class,
+            ProductSeeder::class,
+
+            // Members (depends on nothing)
+            MemberSeeder::class,
+
+            // Groups and member-group relationships
+            GroupSeeder::class,
+
+            // Member-related tables (depends on members, banks)
+            MemberCreditCardSeeder::class,
+            MemberBankDetailsSeeder::class,
+            MemberBillingSettingsSeeder::class,
+
+            // Financial records (depends on members)
+            DebtSeeder::class,
+            InvoiceSeeder::class,
+
+            // Invoice products (depends on invoices and products)
+            InvoiceProductSeeder::class,
+
+            // Receipts (depends on users)
+            ReceiptSeeder::class,
         ]);
-
-        // Seed banks first (no dependencies)
-        $this->call(BankSeeder::class);
-
-        // Seed members
-        $this->call(MemberSeeder::class);
-
-        // Seed groups (depends on members)
-        $this->call(GroupSeeder::class);
     }
 }

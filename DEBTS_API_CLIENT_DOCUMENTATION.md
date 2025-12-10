@@ -347,3 +347,4 @@ GET /api/debts?status=pending&limit=100
 - If `debtType` is not provided, it defaults to `"other"`
 - If `status` is not provided, it defaults to `"pending"`
 - `lastReminderSentAt` is automatically set when using `sendImmediateReminder: true` or calling the reminder endpoint
+

@@ -9,12 +9,12 @@ class MemberCreditCard extends Model
 {
     protected $fillable = [
         'member_id',
+        'token',
         'last_digits',
         'company',
         'expiration',
-        'first_name',
-        'last_name',
-        'is_default'
+        'full_name',
+        'is_default',
     ];
 
     public function member(): BelongsTo

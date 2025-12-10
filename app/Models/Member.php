@@ -21,7 +21,6 @@ class Member extends Model
         'mobile',
         'phone',
         'email',
-        'gender',
         'address',
         'address_2',
         'city',

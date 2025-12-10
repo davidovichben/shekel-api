@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -12,10 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update any existing NULL type values to 'other'
-        DB::table('debts')
-            ->whereNull('type')
-            ->update(['type' => 'other']);
+        Schema::table('members', function (Blueprint $table) {
+            $table->dropColumn('gender');
+        });
     }
 
     /**
@@ -23,7 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // No need to reverse this data migration
+        Schema::table('members', function (Blueprint $table) {
+            $table->enum('gender', ['male', 'female', 'other'])->nullable()->after('email');
+        });
     }
 };
-

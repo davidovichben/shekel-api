@@ -20,6 +20,7 @@ Route::post('logout-all', [AuthController::class, 'logoutAll']);
 Route::get('user', [AuthController::class, 'user']);
 
 Route::delete('members/bulk', [MemberController::class, 'bulkDestroy']);
+Route::get('members/list', [MemberController::class, 'list']);
 
 // Resource routes
 Route::apiResource('members', MemberController::class);
@@ -35,6 +36,7 @@ Route::get('members-mail-list', [MemberController::class, 'mailList']);
 // Additional debt routes
 Route::get('members/{memberId}/debts/{status}', [DebtController::class, 'byMember'])->where('status', 'open|closed');
 Route::post('debts/bulk', [DebtController::class, 'bulkStore']);
+Route::post('debts/export', [DebtController::class, 'export']);
 Route::post('debts/{debt}/reminder', [DebtController::class, 'sendReminder']);
 
 // Member group routes

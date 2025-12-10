@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\DebtsExport;
+use App\Exports\DebtsPdfExport;
 use App\Models\Debt;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DebtController extends Controller
 {
@@ -18,11 +23,12 @@ class DebtController extends Controller
         
         // Calculate total sum of all debts (before pagination, respects filters)
         // Clone query to avoid affecting pagination query
-        $totalSum = (float) (clone $query)->sum('amount');
+        $totalSum = (float) (clone $query)->sum('debts.amount');
         
-        // Support limit parameter for pagination
+        // Support limit and page parameters for pagination
         $perPage = $request->get('limit', 15);
-        $debts = $query->paginate($perPage);
+        $page = $request->get('page', 1);
+        $debts = $query->paginate($perPage, ['*'], 'page', $page);
 
         $rows = $this->formatDebtRows($debts->getCollection());
 
@@ -31,8 +37,6 @@ class DebtController extends Controller
             'counts' => [
                 'totalRows' => $debts->total(),
                 'totalPages' => $debts->lastPage(),
-                'currentPage' => $debts->currentPage(),
-                'perPage' => $debts->perPage(),
             ],
             'totalSum' => number_format($totalSum, 2, '.', ''),
         ]);
@@ -311,6 +315,89 @@ class DebtController extends Controller
     }
 
     /**
+     * Export debts to Excel/CSV.
+     */
+    public function export(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'nullable|array',
+            'ids.*' => 'integer|exists:debts,id',
+            'status' => 'nullable|string|in:pending,paid,overdue,cancelled',
+            'type' => 'nullable|string|in:neder_shabbat,tikun_nezek,dmei_chaver,kiddush,neder_yom_shabbat,other',
+            'member_id' => 'nullable|integer|exists:members,id',
+            'file_type' => 'required|string|in:xls,csv,pdf',
+        ]);
+
+        // Build query based on filters
+        if (!empty($validated['ids'])) {
+            $query = Debt::with('member')->whereIn('id', $validated['ids']);
+        } else {
+            $query = $this->buildDebtQuery($request);
+        }
+
+        // Apply additional filters
+        if (!empty($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
+
+        if (!empty($validated['type'])) {
+            $query->where('type', $validated['type']);
+        }
+
+        if (!empty($validated['member_id'])) {
+            $query->where('member_id', $validated['member_id']);
+        }
+
+        $debts = $query->get();
+        $fileType = $validated['file_type'];
+
+        if ($fileType === 'pdf') {
+            try {
+                $rows = $this->formatDebtRowsForPdf($debts);
+                // Ensure it's a Collection
+                if (!$rows instanceof Collection) {
+                    $rows = collect($rows);
+                }
+                
+                // Handle empty collection
+                if ($rows->isEmpty()) {
+                    return response()->json([
+                        'message' => 'No debts found to export'
+                    ], 404);
+                }
+                
+                // Convert collection to array to ensure proper format
+                $rowsArray = $rows->toArray();
+                
+                return Excel::download(new DebtsPdfExport(collect($rowsArray)), 'debts.pdf', \Maatwebsite\Excel\Excel::MPDF);
+            } catch (\Throwable $e) {
+                Log::error('PDF Export Error: ' . $e->getMessage(), [
+                    'trace' => $e->getTraceAsString(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+                return response()->json([
+                    'message' => 'Failed to generate PDF',
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ], 500);
+            }
+        }
+
+        $rows = $this->formatDebtRowsForExport($debts);
+
+        $writerType = match ($fileType) {
+            'xls' => \Maatwebsite\Excel\Excel::XLSX,
+            'csv' => \Maatwebsite\Excel\Excel::CSV,
+        };
+
+        $extension = $fileType === 'xls' ? 'xlsx' : $fileType;
+
+        return Excel::download(new DebtsExport($rows), "debts.{$extension}", $writerType);
+    }
+
+    /**
      * Display a paginated listing of debts for a specific member.
      */
     public function byMember(Request $request, int $memberId, string $status = 'open')
@@ -354,33 +441,114 @@ class DebtController extends Controller
     private function buildDebtQuery(Request $request)
     {
         $query = Debt::with('member');
+        
+        $needsMemberJoin = false;
+        $needsBillingJoin = false;
 
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
+        // Filter by status
+        if ($request->has('status') && $request->status !== null && $request->status !== '') {
+            $query->where('debts.status', $request->status);
         }
 
+        // Filter by member_id (backward compatibility)
         if ($request->has('member_id')) {
-            $query->where('member_id', $request->member_id);
+            $query->where('debts.member_id', $request->member_id);
         }
 
+        // Filter by type (backward compatibility)
         if ($request->has('type')) {
-            $query->where('type', $request->type);
+            $query->where('debts.type', $request->type);
         }
 
-        $sortColumn = $request->get('sort', 'created_at');
-        $sortDirection = str_starts_with($sortColumn, '-') ? 'desc' : 'asc';
-        $sortColumn = ltrim($sortColumn, '-');
+        // Filter by date_from (start date)
+        if ($request->has('date_from') && $request->date_from !== null && $request->date_from !== '') {
+            $query->where('debts.due_date', '>=', $request->date_from);
+        }
 
-        $sortMap = [
-            'amount' => 'amount',
-            'gregorianDate' => 'due_date',
-            'dueDate' => 'due_date', // Support both for backward compatibility
-            'status' => 'status',
-            'type' => 'type',
-        ];
+        // Filter by date_to (end date)
+        if ($request->has('date_to') && $request->date_to !== null && $request->date_to !== '') {
+            $query->where('debts.due_date', '<=', $request->date_to);
+        }
 
-        $dbColumn = $sortMap[$sortColumn] ?? 'created_at';
-        $query->orderBy($dbColumn, $sortDirection);
+        // Filter by should_bill (automatic payment approval)
+        if ($request->has('should_bill')) {
+            $shouldBill = filter_var($request->should_bill, FILTER_VALIDATE_BOOLEAN);
+            if ($shouldBill) {
+                $needsBillingJoin = true;
+            }
+        }
+
+        // Handle sorting - check if we need member join for name sorting
+        $sortBy = $request->get('sort_by');
+        if ($sortBy === 'name') {
+            $needsMemberJoin = true;
+        }
+        
+        // Also check legacy sort parameter
+        if (!$sortBy && $request->has('sort')) {
+            $sortColumn = ltrim($request->get('sort', 'created_at'), '-');
+            // Legacy sort doesn't support name, so no need to check
+        }
+
+        // Apply joins if needed
+        if ($needsBillingJoin) {
+            $query->join('member_billing_settings', 'debts.member_id', '=', 'member_billing_settings.member_id')
+                  ->where('member_billing_settings.should_bill', true);
+        }
+        
+        if ($needsMemberJoin) {
+            $query->join('members', 'debts.member_id', '=', 'members.id');
+        }
+        
+        // Select only debts columns to avoid conflicts when joins are used
+        if ($needsBillingJoin || $needsMemberJoin) {
+            $query->select('debts.*');
+        }
+
+        // Handle sorting
+        if ($request->has('sort') && !$request->has('sort_by')) {
+            // Legacy sort parameter
+            $sortColumn = $request->get('sort', 'created_at');
+            $sortDirection = str_starts_with($sortColumn, '-') ? 'desc' : 'asc';
+            $sortColumn = ltrim($sortColumn, '-');
+            
+            $sortMap = [
+                'amount' => 'debts.amount',
+                'gregorianDate' => 'debts.due_date',
+                'dueDate' => 'debts.due_date',
+                'status' => 'debts.status',
+                'type' => 'debts.type',
+            ];
+            
+            $dbColumn = $sortMap[$sortColumn] ?? 'debts.created_at';
+            $query->orderBy($dbColumn, $sortDirection);
+        } else {
+            // New sort_by and sort_order parameters
+            $sortBy = $sortBy ?? 'created_at';
+            $sortOrder = $request->get('sort_order', 'desc');
+            
+            // Validate sort_order
+            if (!in_array(strtolower($sortOrder), ['asc', 'desc'])) {
+                $sortOrder = 'desc';
+            }
+
+            // Map sort_by values to database columns
+            $sortMap = [
+                'date' => 'debts.due_date',
+                'amount' => 'debts.amount',
+                'name' => 'members.first_name',
+            ];
+
+            $dbColumn = $sortMap[$sortBy] ?? 'debts.created_at';
+            
+            // For name sorting, sort by first_name and last_name
+            if ($sortBy === 'name') {
+                $query->orderBy('members.first_name', $sortOrder)
+                      ->orderBy('members.last_name', $sortOrder);
+            } else {
+                $query->orderBy($dbColumn, $sortOrder);
+            }
+        }
 
         return $query;
     }
@@ -398,6 +566,72 @@ class DebtController extends Controller
                 'gregorianDate' => $debt->due_date,
                 'status' => $debt->status,
                 'lastReminderSentAt' => $debt->last_reminder_sent_at,
+            ];
+        });
+    }
+
+    private function formatDebtRowsForExport($debts)
+    {
+        $typeLabels = [
+            'neder_shabbat' => 'נדר שבת',
+            'tikun_nezek' => 'תיקון נזק',
+            'dmei_chaver' => 'דמי חבר',
+            'kiddush' => 'קידוש שבת',
+            'neder_yom_shabbat' => 'נדר יום שבת',
+            'other' => 'אחר',
+        ];
+
+        $statusLabels = [
+            'pending' => 'ממתין',
+            'paid' => 'שולם',
+            'overdue' => 'פג תוקף',
+            'cancelled' => 'בוטל',
+        ];
+
+        return $debts->map(function ($debt) use ($typeLabels, $statusLabels) {
+            return [
+                $debt->member ? $debt->member->full_name : '',
+                $typeLabels[$debt->type] ?? $debt->type,
+                number_format((float)$debt->amount, 2, '.', ''),
+                $debt->description ?? '',
+                $debt->due_date ? $this->formatDateForResponse($debt->due_date) : '',
+                $statusLabels[$debt->status] ?? $debt->status,
+                $debt->last_reminder_sent_at ? $this->formatDateForResponse($debt->last_reminder_sent_at) : '',
+            ];
+        });
+    }
+
+    private function formatDebtRowsForPdf($debts)
+    {
+        $typeLabels = [
+            'neder_shabbat' => 'נדר שבת',
+            'tikun_nezek' => 'תיקון נזק',
+            'dmei_chaver' => 'דמי חבר',
+            'kiddush' => 'קידוש שבת',
+            'neder_yom_shabbat' => 'נדר יום שבת',
+            'other' => 'אחר',
+        ];
+
+        $statusLabels = [
+            'pending' => 'ממתין',
+            'paid' => 'שולם',
+            'overdue' => 'פג תוקף',
+            'cancelled' => 'בוטל',
+        ];
+
+        // Reversed order for RTL PDF layout (matching headings)
+        return $debts->map(function ($debt) use ($typeLabels, $statusLabels) {
+            $lastReminder = $debt->last_reminder_sent_at ? $this->formatDateForResponse($debt->last_reminder_sent_at) : '';
+            $dueDate = $debt->due_date ? $this->formatDateForResponse($debt->due_date) : '';
+            
+            return [
+                $lastReminder ?? '',
+                $statusLabels[$debt->status] ?? ($debt->status ?? ''),
+                $dueDate ?? '',
+                $debt->description ?? '',
+                number_format((float)($debt->amount ?? 0), 2, '.', ''),
+                $typeLabels[$debt->type] ?? ($debt->type ?? ''),
+                $debt->member ? ($debt->member->full_name ?? '') : '',
             ];
         });
     }
@@ -425,7 +659,7 @@ class DebtController extends Controller
     private function formatDateForResponse($date)
     {
         if (!$date) {
-            return null;
+            return '';
         }
 
         try {
@@ -438,9 +672,9 @@ class DebtController extends Controller
                 return $carbon->format('d/m/Y');
             }
             
-            return null;
+            return '';
         } catch (\Exception $e) {
-            return null;
+            return '';
         }
     }
 

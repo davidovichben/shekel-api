@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -12,10 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update any existing NULL type values to 'other'
-        DB::table('debts')
-            ->whereNull('type')
-            ->update(['type' => 'other']);
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 255);
+            $table->text('description')->nullable();
+            $table->unsignedDecimal('price', 10, 2);
+            $table->timestamps();
+        });
     }
 
     /**
@@ -23,7 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // No need to reverse this data migration
+        Schema::dropIfExists('products');
     }
 };
-

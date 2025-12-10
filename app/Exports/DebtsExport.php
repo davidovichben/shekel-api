@@ -8,41 +8,43 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class MembersExport implements FromCollection, WithHeadings, WithColumnWidths, WithStyles
+class DebtsExport implements FromCollection, WithHeadings, WithColumnWidths, WithStyles
 {
-    protected $members;
+    protected $debts;
 
-    public function __construct($members)
+    public function __construct($debts)
     {
-        $this->members = $members;
+        $this->debts = $debts;
     }
 
     public function collection()
     {
-        return $this->members;
+        return $this->debts;
     }
 
     public function headings(): array
     {
         return [
             'שם מלא',
-            'סוג',
-            'יתרה',
-            'נייד',
-            'תאריך הודעה אחרונה',
-            'קבוצות',
+            'סוג חוב',
+            'סכום',
+            'תיאור',
+            'תאריך יעד',
+            'סטטוס',
+            'תאריך תזכורת אחרונה',
         ];
     }
 
     public function columnWidths(): array
     {
         return [
-            'A' => 30,
-            'B' => 25,
-            'C' => 18,
-            'D' => 22,
-            'E' => 28,
-            'F' => 45,
+            'A' => 30,  // שם מלא
+            'B' => 20,  // סוג חוב
+            'C' => 18,  // סכום
+            'D' => 40,  // תיאור
+            'E' => 20,  // תאריך יעד
+            'F' => 15,  // סטטוס
+            'G' => 25,  // תאריך תזכורת אחרונה
         ];
     }
 
@@ -59,3 +61,4 @@ class MembersExport implements FromCollection, WithHeadings, WithColumnWidths, W
         return [];
     }
 }
+

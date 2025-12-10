@@ -23,7 +23,6 @@ class MemberSeeder extends Seeder
             'secondary_admin' => 5,
         ];
 
-        $genders = ['male', 'female', 'other'];
         $contactTypes = ['child', 'parent', 'sibling', 'spouse', 'brother-in-law', 'grandparent', 'son-in-law', 'guest', 'phone_operator', 'other'];
 
         foreach ($typeDistribution as $type => $count) {
@@ -34,7 +33,6 @@ class MemberSeeder extends Seeder
                     'mobile' => $faker->phoneNumber,
                     'phone' => $faker->optional(0.7)->phoneNumber,
                     'email' => $faker->optional(0.8)->email,
-                    'gender' => $faker->randomElement($genders),
                     'address' => $faker->streetAddress,
                     'address_2' => $faker->optional(0.3)->secondaryAddress,
                     'city' => $faker->city,

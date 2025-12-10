@@ -15,15 +15,14 @@ class Invoice extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'invoice_number',
         'member_id',
+        'invoice_number',
         'total_amount',
         'tax_amount',
         'subtotal',
-        'status',
         'payment_method',
-        'invoice_date',
-        'due_date',
+        'gregorian_date',
+        'hebrew_date',
         'paid_date',
         'notes',
     ];
@@ -46,8 +45,7 @@ class Invoice extends Model
             'total_amount' => 'decimal:2',
             'tax_amount' => 'decimal:2',
             'subtotal' => 'decimal:2',
-            'invoice_date' => 'datetime',
-            'due_date' => 'date',
+            'gregorian_date' => 'date',
             'paid_date' => 'date',
         ];
     }
@@ -60,28 +58,4 @@ class Invoice extends Model
         return $this->belongsTo(Member::class);
     }
 
-    /**
-     * Scope a query to only include invoices with a given status.
-     */
-    public function scopeStatus($query, string $status)
-    {
-        return $query->where('status', $status);
-    }
-
-    /**
-     * Scope a query to only include unpaid invoices.
-     */
-    public function scopeUnpaid($query)
-    {
-        return $query->whereIn('status', ['pending', 'overdue']);
-    }
-
-    /**
-     * Scope a query to only include overdue invoices.
-     */
-    public function scopeOverdue($query)
-    {
-        return $query->where('status', 'pending')
-            ->where('due_date', '<', now());
-    }
 }
