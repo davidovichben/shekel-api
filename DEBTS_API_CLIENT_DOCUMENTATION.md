@@ -99,7 +99,86 @@ POST /api/debts
 
 ---
 
-### 2. Send Reminder (POST)
+### 2. Bulk Create Debts (POST)
+**Endpoint:** `POST /api/debts/bulk`
+
+**Description:** Create multiple debts in a single transaction. All debts are created together or none at all (all or nothing).
+
+**Request Body:**
+```json
+[
+  {
+    "memberId": "123",
+    "debtType": "neder_shabbat",
+    "amount": 540,
+    "description": "נדר שבת שובה - ראשונה",
+    "gregorianDate": "15/08/2025",
+    "sendImmediateReminder": true,
+    "status": "pending"
+  },
+  {
+    "memberId": "456",
+    "debtType": "neder_shabbat",
+    "amount": 320,
+    "description": "נדר שבת שובה - שנייה",
+    "gregorianDate": "15/08/2025",
+    "sendImmediateReminder": false,
+    "status": "pending"
+  }
+]
+```
+
+**Fields:** Same as Create Debt endpoint, but accepts an array of debt objects.
+
+**Response:** 200 OK
+```json
+[
+  {
+    "id": "101",
+    "memberId": "123",
+    "memberName": "משה המנשה",
+    "debtType": "neder_shabbat",
+    "amount": "540.00",
+    "description": "נדר שבת שובה - ראשונה",
+    "gregorianDate": "15/08/2025",
+    "status": "pending",
+    "lastReminderSentAt": "15/08/2025",
+    "createdAt": "2025-01-15T10:00:00.000000Z",
+    "updatedAt": "2025-01-15T10:00:00.000000Z"
+  },
+  {
+    "id": "102",
+    "memberId": "456",
+    "memberName": "אברהם יצחק",
+    "debtType": "neder_shabbat",
+    "amount": "320.00",
+    "description": "נדר שבת שובה - שנייה",
+    "gregorianDate": "15/08/2025",
+    "status": "pending",
+    "lastReminderSentAt": null,
+    "createdAt": "2025-01-15T10:00:00.000000Z",
+    "updatedAt": "2025-01-15T10:00:00.000000Z"
+  }
+]
+```
+
+**Error Response:** 422 Unprocessable Entity
+```json
+{
+  "message": "Failed to create debts",
+  "error": "Validation error details..."
+}
+```
+
+**Notes:**
+- All debts are created in a single database transaction
+- If any debt fails validation, the entire operation is rolled back (no debts are created)
+- Dates are returned in DD/MM/YYYY format
+- If `sendImmediateReminder: true`, `lastReminderSentAt` is set to current date/time
+
+---
+
+### 3. Send Reminder (POST)
 **Endpoint:** `POST /api/debts/{id}/reminder`
 
 **Description:** Send a reminder for a specific debt. Updates the `lastReminderSentAt` timestamp.

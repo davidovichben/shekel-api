@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Debt;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class DebtController extends Controller
@@ -14,6 +15,10 @@ class DebtController extends Controller
     public function index(Request $request)
     {
         $query = $this->buildDebtQuery($request);
+        
+        // Calculate total sum of all debts (before pagination, respects filters)
+        // Clone query to avoid affecting pagination query
+        $totalSum = (float) (clone $query)->sum('amount');
         
         // Support limit parameter for pagination
         $perPage = $request->get('limit', 15);
@@ -29,7 +34,112 @@ class DebtController extends Controller
                 'currentPage' => $debts->currentPage(),
                 'perPage' => $debts->perPage(),
             ],
+            'totalSum' => number_format($totalSum, 2, '.', ''),
         ]);
+    }
+
+    /**
+     * Bulk create multiple debts in a single transaction.
+     */
+    public function bulkStore(Request $request)
+    {
+        $debtsData = $request->validate([
+            '*' => 'required|array',
+            '*.memberId' => 'required',
+            '*.debtType' => 'nullable',
+            '*.amount' => 'required|numeric',
+            '*.description' => 'nullable|string|max:500',
+            '*.gregorianDate' => 'nullable',
+            '*.sendImmediateReminder' => 'nullable|boolean',
+            '*.status' => 'nullable',
+        ]);
+
+        $createdDebts = [];
+
+        // Use database transaction to ensure all or nothing
+        DB::beginTransaction();
+        
+        try {
+            foreach ($debtsData as $debtData) {
+                // Handle gregorianDate -> due_date mapping
+                $requestData = $debtData;
+                if (isset($requestData['gregorianDate']) && !empty($requestData['gregorianDate'])) {
+                    $dateValue = $requestData['gregorianDate'];
+                    $parsedDate = $this->parseDate($dateValue);
+                    if ($parsedDate) {
+                        $requestData['due_date'] = $parsedDate;
+                    }
+                    unset($requestData['gregorianDate']);
+                }
+
+                // Handle debtType -> type mapping
+                if (isset($requestData['debtType'])) {
+                    $requestData['type'] = $requestData['debtType'];
+                    unset($requestData['debtType']);
+                }
+
+                // Handle lastReminderSentAt -> last_reminder_sent_at mapping
+                if (isset($requestData['lastReminderSentAt']) && !empty($requestData['lastReminderSentAt'])) {
+                    $dateValue = $requestData['lastReminderSentAt'];
+                    $parsedDate = $this->parseDate($dateValue);
+                    if ($parsedDate) {
+                        $requestData['last_reminder_sent_at'] = $parsedDate;
+                    }
+                    unset($requestData['lastReminderSentAt']);
+                }
+
+                // Normalize camelCase to snake_case
+                $data = $this->normalizeRequestData($requestData);
+
+                // Set default status if not provided
+                if (!isset($data['status'])) {
+                    $data['status'] = 'pending';
+                }
+
+                // Set default type if not provided
+                if (!isset($data['type']) || empty($data['type'])) {
+                    $data['type'] = 'other';
+                }
+
+                // Handle send immediate reminder option
+                $sendImmediateReminder = false;
+                if (isset($debtData['sendImmediateReminder']) || isset($debtData['send_immediate_reminder'])) {
+                    $sendImmediateReminder = filter_var(
+                        $debtData['sendImmediateReminder'] ?? $debtData['send_immediate_reminder'] ?? false,
+                        FILTER_VALIDATE_BOOLEAN
+                    );
+                }
+
+                $validated = validator($data, [
+                    'member_id' => 'required|exists:members,id',
+                    'type' => 'required|in:neder_shabbat,tikun_nezek,dmei_chaver,kiddush,neder_yom_shabbat,other',
+                    'amount' => 'required|numeric',
+                    'description' => 'nullable|string|max:500',
+                    'due_date' => 'nullable|date',
+                    'status' => 'nullable|in:pending,paid,overdue,cancelled',
+                    'last_reminder_sent_at' => 'nullable|date',
+                ])->validate();
+
+                // Set last_reminder_sent_at if immediate reminder requested
+                if ($sendImmediateReminder) {
+                    $validated['last_reminder_sent_at'] = now();
+                }
+
+                $debt = Debt::create($validated);
+                $debt->load('member');
+                $createdDebts[] = $this->formatDebtDetails($debt);
+            }
+
+            DB::commit();
+
+            return response()->json($createdDebts, 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to create debts',
+                'error' => $e->getMessage()
+            ], 422);
+        }
     }
 
     /**
@@ -295,18 +405,43 @@ class DebtController extends Controller
     private function formatDebtDetails(Debt $debt)
     {
         return [
-            'id' => $debt->id,
-            'memberId' => $debt->member_id,
+            'id' => (string)$debt->id,
+            'memberId' => (string)$debt->member_id,
             'memberName' => $debt->member ? $debt->member->full_name : null,
-            'type' => $debt->type,
+            'debtType' => $debt->type,
             'amount' => $debt->amount,
             'description' => $debt->description,
-            'gregorianDate' => $debt->due_date,
+            'gregorianDate' => $this->formatDateForResponse($debt->due_date),
             'status' => $debt->status,
-            'lastReminderSentAt' => $debt->last_reminder_sent_at,
+            'lastReminderSentAt' => $this->formatDateForResponse($debt->last_reminder_sent_at),
             'createdAt' => $debt->created_at,
             'updatedAt' => $debt->updated_at,
         ];
+    }
+
+    /**
+     * Format date to DD/MM/YYYY for response.
+     */
+    private function formatDateForResponse($date)
+    {
+        if (!$date) {
+            return null;
+        }
+
+        try {
+            if ($date instanceof \Carbon\Carbon) {
+                return $date->format('d/m/Y');
+            }
+            
+            if (is_string($date)) {
+                $carbon = \Carbon\Carbon::parse($date);
+                return $carbon->format('d/m/Y');
+            }
+            
+            return null;
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
