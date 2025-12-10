@@ -9,10 +9,12 @@ class Debt extends Model
 {
     protected $fillable = [
         'member_id',
+        'type',
         'amount',
         'description',
         'due_date',
         'status',
+        'last_reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -20,6 +22,7 @@ class Debt extends Model
         return [
             'amount' => 'decimal:2',
             'due_date' => 'date',
+            'last_reminder_sent_at' => 'datetime',
         ];
     }
 

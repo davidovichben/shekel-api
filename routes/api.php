@@ -22,6 +22,7 @@ Route::get('user', [AuthController::class, 'user']);
 // Resource routes
 Route::apiResource('members', MemberController::class);
 Route::apiResource('receipts', ReceiptController::class);
+Route::apiResource('debts', DebtController::class);
 
 // Additional member routes
 Route::get('members/type/{type}', [MemberController::class, 'byType']);
@@ -29,8 +30,9 @@ Route::get('members/export', [MemberController::class, 'export']);
 Route::get('members-with-accounts', [MemberController::class, 'withWebsiteAccounts']);
 Route::get('members-mail-list', [MemberController::class, 'mailList']);
 
-// Debt routes
+// Additional debt routes
 Route::get('members/{memberId}/debts/{status}', [DebtController::class, 'byMember'])->where('status', 'open|closed');
+Route::post('debts/{debt}/reminder', [DebtController::class, 'sendReminder']);
 
 // Member group routes
 Route::get('members/{memberId}/groups', [MemberGroupController::class, 'index']);

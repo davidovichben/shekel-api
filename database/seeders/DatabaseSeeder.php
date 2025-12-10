@@ -15,11 +15,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
+        // Create test user
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Seed banks first (no dependencies)
+        $this->call(BankSeeder::class);
+
+        // Seed members
+        $this->call(MemberSeeder::class);
+
+        // Seed groups (depends on members)
+        $this->call(GroupSeeder::class);
     }
 }
