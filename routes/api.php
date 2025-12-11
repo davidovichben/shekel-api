@@ -10,69 +10,68 @@ use App\Http\Controllers\MemberCreditCardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\MemberBillingSettingsController;
 use App\Http\Controllers\MemberGroupController;
-use App\Http\Controllers\ReceiptController;
 use Illuminate\Support\Facades\Route;
 
-// Authentication routes
-Route::post('register', [AuthController::class, 'register']);
+// Public routes
 Route::post('login', [AuthController::class, 'login']);
-Route::post('logout', [AuthController::class, 'logout']);
-Route::post('logout-all', [AuthController::class, 'logoutAll']);
-Route::get('user', [AuthController::class, 'user']);
 
-Route::delete('members/bulk', [MemberController::class, 'bulkDestroy']);
-Route::get('members/list', [MemberController::class, 'list']);
+// Protected routes
+Route::middleware('auth.jwt')->group(function () {
+    // Auth routes
+    Route::post('logout', [AuthController::class, 'logout']);
+    Route::get('user', [AuthController::class, 'user']);
 
-// Resource routes
-Route::apiResource('members', MemberController::class);
-Route::apiResource('receipts', ReceiptController::class);
-Route::apiResource('debts', DebtController::class);
+    // Business routes
+    Route::get('business', [BusinessController::class, 'show']);
+    Route::put('business', [BusinessController::class, 'update']);
 
-// Additional member routes
-Route::get('members/type/{type}', [MemberController::class, 'byType']);
-Route::post('members/export', [MemberController::class, 'export']);
-Route::post('members/{member}/notify', [MemberController::class, 'notify']);
-Route::post('members/notify', [MemberController::class, 'notifyMany']);
-Route::get('members-with-accounts', [MemberController::class, 'withWebsiteAccounts']);
-Route::get('members-mail-list', [MemberController::class, 'mailList']);
+    // Member routes
+    Route::delete('members/bulk', [MemberController::class, 'bulkDestroy']);
+    Route::get('members/list', [MemberController::class, 'list']);
+    Route::apiResource('members', MemberController::class);
+    Route::get('members/type/{type}', [MemberController::class, 'byType']);
+    Route::post('members/export', [MemberController::class, 'export']);
+    Route::post('members/{member}/notify', [MemberController::class, 'notify']);
+    Route::post('members/notify', [MemberController::class, 'notifyMany']);
+    Route::get('members-with-accounts', [MemberController::class, 'withWebsiteAccounts']);
+    Route::get('members-mail-list', [MemberController::class, 'mailList']);
 
-// Additional debt routes
-Route::get('members/{memberId}/debts/{status}', [DebtController::class, 'byMember'])->where('status', 'open|closed');
-Route::post('debts/bulk', [DebtController::class, 'bulkStore']);
-Route::post('debts/export', [DebtController::class, 'export']);
-Route::post('debts/{debt}/reminder', [DebtController::class, 'sendReminder']);
+    // Debt routes
+    Route::apiResource('debts', DebtController::class);
+    Route::get('members/{memberId}/debts/{status}', [DebtController::class, 'byMember'])->where('status', 'open|closed');
+    Route::post('debts/bulk', [DebtController::class, 'bulkStore']);
+    Route::post('debts/export', [DebtController::class, 'export']);
+    Route::post('debts/{debt}/reminder', [DebtController::class, 'sendReminder']);
 
-// Member group routes
-Route::get('members/{memberId}/groups', [MemberGroupController::class, 'index']);
-Route::post('members/{memberId}/groups', [MemberGroupController::class, 'store']);
-Route::delete('members/{memberId}/groups/{groupId}', [MemberGroupController::class, 'destroy']);
+    // Member group routes
+    Route::get('members/{memberId}/groups', [MemberGroupController::class, 'index']);
+    Route::post('members/{memberId}/groups', [MemberGroupController::class, 'store']);
+    Route::delete('members/{memberId}/groups/{groupId}', [MemberGroupController::class, 'destroy']);
 
-// Member bank details routes
-Route::get('members/{memberId}/bank-details', [MemberBankDetailsController::class, 'index']);
-Route::post('members/{memberId}/bank-details', [MemberBankDetailsController::class, 'store']);
-Route::get('members/{memberId}/bank-details/{id}', [MemberBankDetailsController::class, 'show']);
-Route::put('members/{memberId}/bank-details/{id}', [MemberBankDetailsController::class, 'update']);
-Route::delete('members/{memberId}/bank-details/{id}', [MemberBankDetailsController::class, 'destroy']);
+    // Member bank details routes
+    Route::get('members/{memberId}/bank-details', [MemberBankDetailsController::class, 'index']);
+    Route::post('members/{memberId}/bank-details', [MemberBankDetailsController::class, 'store']);
+    Route::get('members/{memberId}/bank-details/{id}', [MemberBankDetailsController::class, 'show']);
+    Route::put('members/{memberId}/bank-details/{id}', [MemberBankDetailsController::class, 'update']);
+    Route::delete('members/{memberId}/bank-details/{id}', [MemberBankDetailsController::class, 'destroy']);
 
-// Member credit card routes
-Route::get('members/{memberId}/credit-cards', [MemberCreditCardController::class, 'index']);
-Route::post('members/{memberId}/credit-cards', [MemberCreditCardController::class, 'store']);
-Route::get('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'show']);
-Route::put('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'update']);
-Route::delete('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'destroy']);
-Route::put('members/{memberId}/credit-cards/{id}/set-default', [MemberCreditCardController::class, 'setDefault']);
+    // Member credit card routes
+    Route::get('members/{memberId}/credit-cards', [MemberCreditCardController::class, 'index']);
+    Route::post('members/{memberId}/credit-cards', [MemberCreditCardController::class, 'store']);
+    Route::get('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'show']);
+    Route::put('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'update']);
+    Route::delete('members/{memberId}/credit-cards/{id}', [MemberCreditCardController::class, 'destroy']);
+    Route::put('members/{memberId}/credit-cards/{id}/set-default', [MemberCreditCardController::class, 'setDefault']);
 
-// Group routes
-Route::get('groups/list', [GroupController::class, 'list']);
-Route::get('members/{memberId}/available-groups', [GroupController::class, 'index']);
-Route::post('groups', [GroupController::class, 'store']);
+    // Group routes
+    Route::get('groups/list', [GroupController::class, 'list']);
+    Route::get('members/{memberId}/available-groups', [GroupController::class, 'index']);
+    Route::post('groups', [GroupController::class, 'store']);
 
-// Member billing settings routes
-Route::get('members/{memberId}/billing-settings', [MemberBillingSettingsController::class, 'show']);
-Route::put('members/{memberId}/billing-settings', [MemberBillingSettingsController::class, 'update']);
+    // Member billing settings routes
+    Route::get('members/{memberId}/billing-settings', [MemberBillingSettingsController::class, 'show']);
+    Route::put('members/{memberId}/billing-settings', [MemberBillingSettingsController::class, 'update']);
 
-// Generic routes
-Route::get('banks', [GenericController::class, 'banks']);
-
-// Business routes
-Route::apiResource('businesses', BusinessController::class)->except(['destroy']);
+    // Generic routes
+    Route::get('banks', [GenericController::class, 'banks']);
+});
