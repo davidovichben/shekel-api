@@ -62,11 +62,11 @@ class GenericController extends Controller
                 'name' => $debt->member ? $debt->member->full_name . ' - ' . number_format($debt->amount, 2) : $debt->description,
             ]);
 
-        // Search receipts by receipt number or notes
+        // Search receipts by receipt number or description
         $receipts = Receipt::where('business_id', $businessId)
             ->where(function ($q) use ($query) {
                 $q->where('receipt_number', 'like', "%{$query}%")
-                  ->orWhere('notes', 'like', "%{$query}%");
+                  ->orWhere('description', 'like', "%{$query}%");
             })
             ->limit(10)
             ->get()
