@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DebtController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\GenericController;
 use App\Http\Controllers\MemberBankDetailsController;
 use App\Http\Controllers\MemberController;
@@ -26,6 +27,7 @@ Route::get('members/list', [MemberController::class, 'list']);
 Route::apiResource('members', MemberController::class);
 Route::apiResource('receipts', ReceiptController::class);
 Route::apiResource('debts', DebtController::class);
+Route::apiResource('expenses', ExpenseController::class);
 
 // Additional member routes
 Route::get('members/type/{type}', [MemberController::class, 'byType']);
@@ -40,6 +42,11 @@ Route::get('members/{memberId}/debts/{status}', [DebtController::class, 'byMembe
 Route::post('debts/bulk', [DebtController::class, 'bulkStore']);
 Route::post('debts/export', [DebtController::class, 'export']);
 Route::post('debts/{debt}/reminder', [DebtController::class, 'sendReminder']);
+
+// Additional expense routes
+Route::get('expenses/stats', [ExpenseController::class, 'stats']);
+Route::post('expenses/export', [ExpenseController::class, 'export']);
+Route::get('expenses/{expense}/receipt', [ExpenseController::class, 'downloadReceipt']);
 
 // Member group routes
 Route::get('members/{memberId}/groups', [MemberGroupController::class, 'index']);

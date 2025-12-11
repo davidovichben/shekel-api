@@ -18,14 +18,22 @@ class MemberController extends Controller
     public function index(Request $request)
     {
         $query = $this->buildMemberQuery($request);
-        $members = $query->paginate(15);
+        
+        // Support limit and page parameters for pagination
+        $perPage = $request->get('limit', 15);
+        $page = $request->get('page', 1);
+        $members = $query->paginate($perPage, ['*'], 'page', $page);
 
-        $typeCounts = Member::selectRaw('type, COUNT(*) as count')
-            ->whereNotNull('type')
-            ->where('type', '!=', '')
-            ->groupBy('type')
-            ->pluck('count', 'type')
-            ->toArray();
+        // Calculate type counts (only if not filtering by type)
+        $typeCounts = [];
+        if (!$request->has('type')) {
+            $typeCounts = Member::selectRaw('type, COUNT(*) as count')
+                ->whereNotNull('type')
+                ->where('type', '!=', '')
+                ->groupBy('type')
+                ->pluck('count', 'type')
+                ->toArray();
+        }
 
         $rows = $this->formatMemberRows($members->getCollection());
 
