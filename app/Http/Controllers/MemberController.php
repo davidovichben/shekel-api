@@ -27,7 +27,8 @@ class MemberController extends Controller
         // Calculate type counts (only if not filtering by type)
         $typeCounts = [];
         if (!$request->has('type')) {
-            $typeCounts = Member::selectRaw('type, COUNT(*) as count')
+            $typeCounts = Member::where('business_id', current_business_id())
+                ->selectRaw('type, COUNT(*) as count')
                 ->whereNotNull('type')
                 ->where('type', '!=', '')
                 ->groupBy('type')
@@ -52,7 +53,8 @@ class MemberController extends Controller
      */
     public function list(Request $request)
     {
-        $query = Member::select('id', 'first_name', 'last_name');
+        $query = Member::select('id', 'first_name', 'last_name')
+            ->where('business_id', current_business_id());
 
         if ($request->has('search')) {
             $name = $request->search;
@@ -100,7 +102,8 @@ class MemberController extends Controller
             'message' => 'required|string|max:1000',
         ]);
 
-        $members = Member::whereIn('id', $validated['ids'])
+        $members = Member::where('business_id', current_business_id())
+            ->whereIn('id', $validated['ids'])
             ->whereNotNull('mobile')
             ->where('mobile', '!=', '')
             ->get();
@@ -231,7 +234,8 @@ class MemberController extends Controller
             'ids.*' => 'integer|exists:members,id',
         ]);
 
-        Member::whereIn('id', $validated['ids'])->delete();
+        Member::where('business_id', current_business_id())
+            ->whereIn('id', $validated['ids'])->delete();
 
         return response()->json(null, 204);
     }
@@ -302,7 +306,8 @@ class MemberController extends Controller
 
     private function buildMemberQuery(Request $request)
     {
-        $query = Member::with('groups');
+        $query = Member::with('groups')
+            ->where('business_id', current_business_id());
 
         if ($request->has('type')) {
             $query->where('type', $request->type);

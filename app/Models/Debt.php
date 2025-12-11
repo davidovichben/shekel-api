@@ -7,6 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Debt extends Model
 {
+    protected static function booted(): void
+    {
+        static::creating(function (Debt $debt) {
+            $debt->business_id = current_business_id();
+        });
+    }
+
     protected $fillable = [
         'member_id',
         'type',
@@ -29,5 +36,10 @@ class Debt extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class);
+    }
+
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(Business::class);
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\GenericController;
@@ -27,6 +28,11 @@ Route::get('members/list', [MemberController::class, 'list']);
 Route::apiResource('members', MemberController::class);
 Route::apiResource('receipts', ReceiptController::class);
 Route::apiResource('debts', DebtController::class);
+
+// Additional expense routes (must be before apiResource to avoid route conflicts)
+Route::get('expenses/stats', [ExpenseController::class, 'stats']);
+Route::post('expenses/export', [ExpenseController::class, 'export']);
+Route::get('expenses/{expense}/receipt', [ExpenseController::class, 'downloadReceipt']);
 Route::apiResource('expenses', ExpenseController::class);
 
 // Additional member routes
@@ -42,11 +48,6 @@ Route::get('members/{memberId}/debts/{status}', [DebtController::class, 'byMembe
 Route::post('debts/bulk', [DebtController::class, 'bulkStore']);
 Route::post('debts/export', [DebtController::class, 'export']);
 Route::post('debts/{debt}/reminder', [DebtController::class, 'sendReminder']);
-
-// Additional expense routes
-Route::get('expenses/stats', [ExpenseController::class, 'stats']);
-Route::post('expenses/export', [ExpenseController::class, 'export']);
-Route::get('expenses/{expense}/receipt', [ExpenseController::class, 'downloadReceipt']);
 
 // Member group routes
 Route::get('members/{memberId}/groups', [MemberGroupController::class, 'index']);
@@ -79,3 +80,6 @@ Route::put('members/{memberId}/billing-settings', [MemberBillingSettingsControll
 
 // Generic routes
 Route::get('banks', [GenericController::class, 'banks']);
+
+// Business routes
+Route::apiResource('businesses', BusinessController::class)->except(['destroy']);

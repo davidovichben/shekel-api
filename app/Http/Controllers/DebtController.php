@@ -403,6 +403,7 @@ class DebtController extends Controller
     public function byMember(Request $request, int $memberId, string $status = 'open')
     {
         $query = Debt::with('member')
+            ->where('business_id', current_business_id())
             ->where('member_id', $memberId);
 
         if ($status === 'closed') {
@@ -440,7 +441,8 @@ class DebtController extends Controller
 
     private function buildDebtQuery(Request $request)
     {
-        $query = Debt::with('member');
+        $query = Debt::with('member')
+            ->where('debts.business_id', current_business_id());
         
         $needsMemberJoin = false;
         $needsBillingJoin = false;

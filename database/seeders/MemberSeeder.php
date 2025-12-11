@@ -28,6 +28,7 @@ class MemberSeeder extends Seeder
         foreach ($typeDistribution as $type => $count) {
             for ($i = 0; $i < $count; $i++) {
                 Member::create([
+                    'business_id' => 1,
                     'first_name' => $faker->firstName,
                     'last_name' => $faker->lastName,
                     'mobile' => $faker->phoneNumber,

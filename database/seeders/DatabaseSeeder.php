@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            // Business (first, no dependencies)
+            BusinessSeeder::class,
+
             // Base tables (no dependencies)
             UserSeeder::class,
             BankSeeder::class,
