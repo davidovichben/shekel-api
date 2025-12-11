@@ -91,6 +91,7 @@ Route::middleware('auth.jwt')->group(function () {
 
     // Generic routes
     Route::get('banks', [GenericController::class, 'banks']);
+    Route::get('search', [GenericController::class, 'search']);
 
     // Billing routes
     Route::post('billing/store', [BillingController::class, 'store']);
