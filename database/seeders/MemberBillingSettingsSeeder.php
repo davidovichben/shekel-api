@@ -13,7 +13,7 @@ class MemberBillingSettingsSeeder extends Seeder
     public function run(): void
     {
         $faker = Faker::create();
-        $billingTypes = ['credit_card', 'bank_transfer', 'cash', 'check'];
+        $billingTypes = ['credit_card', 'bank', 'bit'];
         $members = Member::inRandomOrder()->limit(100)->get();
 
         foreach ($members as $member) {
@@ -28,7 +28,7 @@ class MemberBillingSettingsSeeder extends Seeder
                 ['member_id' => $member->id],
                 [
                     'should_bill' => $faker->boolean(70),
-                    'billing_date' => $faker->numberBetween(1, 28),
+                    'billing_date' => $faker->randomElement(['1', '10']),
                     'billing_type' => $billingType,
                     'selected_credit_card' => $creditCard?->id,
                 ]

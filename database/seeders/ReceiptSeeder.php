@@ -12,7 +12,7 @@ class ReceiptSeeder extends Seeder
     public function run(): void
     {
         $faker = Faker::create();
-        $statuses = ['pending', 'completed', 'cancelled'];
+        $statuses = ['pending', 'paid', 'cancelled', 'refunded'];
         $paymentMethods = ['credit_card', 'bank_transfer', 'cash', 'check'];
         $users = User::all();
 

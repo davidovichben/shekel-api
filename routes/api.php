@@ -30,6 +30,8 @@ Route::apiResource('debts', DebtController::class);
 // Additional member routes
 Route::get('members/type/{type}', [MemberController::class, 'byType']);
 Route::post('members/export', [MemberController::class, 'export']);
+Route::post('members/{member}/notify', [MemberController::class, 'notify']);
+Route::post('members/notify', [MemberController::class, 'notifyMany']);
 Route::get('members-with-accounts', [MemberController::class, 'withWebsiteAccounts']);
 Route::get('members-mail-list', [MemberController::class, 'mailList']);
 
@@ -60,6 +62,7 @@ Route::delete('members/{memberId}/credit-cards/{id}', [MemberCreditCardControlle
 Route::put('members/{memberId}/credit-cards/{id}/set-default', [MemberCreditCardController::class, 'setDefault']);
 
 // Group routes
+Route::get('groups/list', [GroupController::class, 'list']);
 Route::get('members/{memberId}/available-groups', [GroupController::class, 'index']);
 Route::post('groups', [GroupController::class, 'store']);
 

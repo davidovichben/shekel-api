@@ -12,10 +12,13 @@ class InvoiceSeeder extends Seeder
     public function run(): void
     {
         $faker = Faker::create();
-        $paymentMethods = ['credit_card', 'bank_transfer', 'cash', 'check'];
+        $paymentMethods = ['credit_card', 'bank', 'bit', 'cash', 'cheque'];
         $members = Member::inRandomOrder()->limit(60)->get();
 
-        $invoiceNumber = 1000;
+        $lastInvoice = Invoice::orderBy('id', 'desc')->first();
+        $invoiceNumber = $lastInvoice
+            ? (int) str_replace('INV-', '', $lastInvoice->invoice_number) + 1
+            : 1000;
 
         foreach ($members as $member) {
             $numInvoices = $faker->numberBetween(1, 3);

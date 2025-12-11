@@ -9,6 +9,16 @@ use Illuminate\Http\Request;
 class GroupController extends Controller
 {
     /**
+     * Get a simple list of all groups with id and name.
+     */
+    public function list()
+    {
+        $groups = Group::select('id', 'name')->orderBy('name')->get();
+
+        return response()->json($groups);
+    }
+
+    /**
      * Return all groups a given member is not part of.
      */
     public function index(int $memberId)

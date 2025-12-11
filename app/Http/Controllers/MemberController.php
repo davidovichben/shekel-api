@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\MembersExport;
 use App\Exports\MembersPdfExport;
 use App\Models\Member;
+use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
@@ -56,6 +57,62 @@ class MemberController extends Controller
             'id' => $member->id,
             'name' => trim("{$member->first_name} {$member->last_name}"),
         ]));
+    }
+
+    /**
+     * Send an SMS notification to a member.
+     */
+    public function notify(Request $request, Member $member, SmsService $sms)
+    {
+        $validated = $request->validate([
+            'message' => 'required|string|max:1000',
+        ]);
+
+        if (empty($member->mobile)) {
+            return response()->json(['error' => 'Member has no mobile number'], 422);
+        }
+
+        $success = $sms->send($member->mobile, $validated['message']);
+
+        if (!$success) {
+            return response()->json(['error' => 'Failed to send SMS'], 500);
+        }
+
+        return response()->json(['message' => 'SMS sent successfully']);
+    }
+
+    /**
+     * Send an SMS notification to multiple members.
+     */
+    public function notifyMany(Request $request, SmsService $sms)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:members,id',
+            'message' => 'required|string|max:1000',
+        ]);
+
+        $members = Member::whereIn('id', $validated['ids'])
+            ->whereNotNull('mobile')
+            ->where('mobile', '!=', '')
+            ->get();
+
+        $sent = 0;
+        $failed = 0;
+
+        foreach ($members as $member) {
+            if ($sms->send($member->mobile, $validated['message'])) {
+                $sent++;
+            } else {
+                $failed++;
+            }
+        }
+
+        return response()->json([
+            'sent' => $sent,
+            'failed' => $failed,
+            'skipped' => count($validated['ids']) - $members->count(),
+        ]);
     }
 
     /**
@@ -253,6 +310,16 @@ class MemberController extends Controller
                     ->orWhere('address', 'like', "%{$search}%")
                     ->orWhere('city', 'like', "%{$search}%")
                     ->orWhere('member_number', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->has('has_debt') && $request->boolean('has_debt')) {
+            $query->where('balance', '<', 0);
+        }
+
+        if ($request->has('group')) {
+            $query->whereHas('groups', function ($q) use ($request) {
+                $q->where('groups.id', $request->group);
             });
         }
 

@@ -16,12 +16,12 @@ return new class extends Migration
             $table->foreignId('invoice_id')->constrained()->cascadeOnDelete();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->text('description')->nullable();
-            $table->unsignedDecimal('price', 10, 2);
-            $table->unsignedDecimal('amount', 10, 2);
-            $table->unsignedDecimal('vat', 10, 2);
-            $table->unsignedDecimal('discount', 10, 2);
-            $table->unsignedDecimal('total_before', 10, 2);
-            $table->unsignedDecimal('total_after', 10, 2);
+            $table->decimal('price', 10, 2)->unsigned();
+            $table->decimal('amount', 10, 2)->unsigned();
+            $table->decimal('vat', 10, 2)->unsigned();
+            $table->decimal('discount', 10, 2)->unsigned();
+            $table->decimal('total_before', 10, 2)->unsigned();
+            $table->decimal('total_after', 10, 2)->unsigned();
             $table->timestamps();
         });
     }

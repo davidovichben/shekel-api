@@ -27,7 +27,7 @@ class MemberCreditCardSeeder extends Seeder
 
                 MemberCreditCard::create([
                     'member_id' => $member->id,
-                    'token' => $faker->numerify('####################'),
+                    'token' => $faker->numerify('###################'),
                     'last_digits' => $faker->numerify('####'),
                     'company' => $faker->randomElement($companies),
                     'expiration' => $faker->numerify('##') . '/' . $faker->numberBetween(25, 30),

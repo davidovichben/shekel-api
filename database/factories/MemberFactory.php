@@ -22,7 +22,6 @@ class MemberFactory extends Factory
             'mobile' => fake()->optional()->phoneNumber(),
             'phone' => fake()->optional()->phoneNumber(),
             'email' => fake()->optional()->unique()->safeEmail(),
-            'gender' => fake()->randomElement(['male', 'female', 'other']),
             'address' => fake()->optional()->streetAddress(),
             'address_2' => fake()->optional()->secondaryAddress(),
             'city' => fake()->optional()->city(),
