@@ -24,10 +24,9 @@ class MemberCreditCardController extends Controller
     {
         $validated = $request->validate([
             'last_digits' => 'required|string|size:4',
-            'company' => 'required|string|max:255',
-            'expiration' => 'required|string|max:255',
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
+            'company' => 'required|string|in:visa,mastercard,amex,discover,jcb,diners,unknown',
+            'expiration' => 'required|string|max:5',
+            'full_name' => 'required|string|max:255',
         ]);
 
         $validated['member_id'] = $memberId;
@@ -58,10 +57,9 @@ class MemberCreditCardController extends Controller
 
         $validated = $request->validate([
             'last_digits' => 'sometimes|string|size:4',
-            'company' => 'sometimes|string|max:255',
-            'expiration' => 'sometimes|string|max:255',
-            'first_name' => 'sometimes|string|max:255',
-            'last_name' => 'sometimes|string|max:255',
+            'company' => 'sometimes|string|in:visa,mastercard,amex,discover,jcb,diners,unknown',
+            'expiration' => 'sometimes|string|max:5',
+            'full_name' => 'sometimes|string|max:255',
         ]);
 
         $creditCard->update($validated);

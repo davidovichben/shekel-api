@@ -12,6 +12,7 @@ use App\Http\Controllers\MemberCreditCardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\MemberBillingSettingsController;
 use App\Http\Controllers\MemberGroupController;
+use App\Http\Controllers\ReceiptController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -32,6 +33,12 @@ Route::middleware('auth.jwt')->group(function () {
     Route::post('expenses/export', [ExpenseController::class, 'export']);
     Route::get('expenses/{expense}/receipt', [ExpenseController::class, 'downloadReceipt']);
     Route::apiResource('expenses', ExpenseController::class);
+
+    // Additional receipt routes (must be before apiResource to avoid route conflicts)
+    Route::get('receipts/stats', [ReceiptController::class, 'stats']);
+    Route::post('receipts/export', [ReceiptController::class, 'export']);
+    Route::get('receipts/{receipt}/pdf', [ReceiptController::class, 'downloadPdf']);
+    Route::apiResource('receipts', ReceiptController::class);
 
 
     // Member routes

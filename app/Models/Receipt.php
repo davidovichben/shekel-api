@@ -25,13 +25,13 @@ class Receipt extends Model
     protected $fillable = [
         'receipt_number',
         'user_id',
-        'total_amount',
-        'tax_amount',
-        'subtotal',
+        'total',
         'status',
         'payment_method',
         'receipt_date',
-        'notes',
+        'description',
+        'type',
+        'pdf_file',
     ];
 
     /**
@@ -49,9 +49,7 @@ class Receipt extends Model
     protected function casts(): array
     {
         return [
-            'total_amount' => 'decimal:2',
-            'tax_amount' => 'decimal:2',
-            'subtotal' => 'decimal:2',
+            'total' => 'decimal:2',
             'receipt_date' => 'datetime',
         ];
     }
