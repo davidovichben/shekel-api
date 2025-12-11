@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\GenericController;
 use App\Http\Controllers\MemberBankDetailsController;
@@ -72,3 +73,6 @@ Route::put('members/{memberId}/billing-settings', [MemberBillingSettingsControll
 
 // Generic routes
 Route::get('banks', [GenericController::class, 'banks']);
+
+// Business routes
+Route::apiResource('businesses', BusinessController::class)->except(['destroy']);

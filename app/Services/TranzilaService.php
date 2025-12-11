@@ -8,27 +8,33 @@ class TranzilaService
 {
     protected string $terminal;
     protected string $password;
+    protected string $secretKey;
+    protected string $publicKey;
     protected string $apiUrl;
 
     public function __construct()
     {
         $this->terminal = config('tranzila.terminal');
         $this->password = config('tranzila.password');
+        $this->secretKey = config('tranzila.secret_key');
+        $this->publicKey = config('tranzila.public_key');
         $this->apiUrl = config('tranzila.api_url');
     }
 
     /**
-     * Charge a credit card.
+     * Create a token from credit card details using API V2.
      */
-    public function charge(array $params): array
+    public function createToken(string $cardNumber, string $expDate, string $cvv): array
     {
-        $data = array_merge([
-            'supplier' => $this->terminal,
-            'TranzilaPW' => $this->password,
-            'response_return_format' => 'json',
-        ], $params);
+        $payload = [
+            'terminal_name' => $this->terminal,
+            'ccno' => $cardNumber,
+            'expdate' => $expDate,
+            'mycvv' => $cvv,
+            'TranzilaTK' => '1',
+        ];
 
-        return $this->sendRequest($data);
+        return $this->sendApiV2Request('https://api.tranzila.com/v1/transaction/tokenize', $payload);
     }
 
     /**
@@ -36,25 +42,15 @@ class TranzilaService
      */
     public function chargeToken(string $token, float $amount, string $currency = 'ILS'): array
     {
-        return $this->charge([
+        $payload = [
+            'terminal_name' => $this->terminal,
             'TranzilaTK' => $token,
             'sum' => $amount,
             'currency' => $this->getCurrencyCode($currency),
             'tranmode' => 'A',
-        ]);
-    }
+        ];
 
-    /**
-     * Create a token from credit card details.
-     */
-    public function createToken(string $cardNumber, string $expDate, string $cvv): array
-    {
-        return $this->charge([
-            'ccno' => $cardNumber,
-            'expdate' => $expDate,
-            'mycvv' => $cvv,
-            'TranzilaTK' => '1',
-        ]);
+        return $this->sendApiV2Request('https://api.tranzila.com/v1/transaction/charge', $payload);
     }
 
     /**
@@ -62,24 +58,49 @@ class TranzilaService
      */
     public function refund(string $index, float $amount): array
     {
-        return $this->charge([
+        $payload = [
+            'terminal_name' => $this->terminal,
             'tranmode' => 'C',
             'index' => $index,
             'sum' => $amount,
-        ]);
+        ];
+
+        return $this->sendApiV2Request('https://api.tranzila.com/v1/transaction/refund', $payload);
     }
 
     /**
-     * Send request to Tranzila API.
+     * Generate authentication headers for API V2.
      */
-    protected function sendRequest(array $data): array
+    protected function generateAuthHeaders(): array
     {
-        $response = Http::asForm()->post($this->apiUrl, $data);
+        $time = time();
+        $nonce = bin2hex(random_bytes(40));
+        $accessToken = hash_hmac('sha256', $this->publicKey, $this->secretKey . $time . $nonce);
+
+        return [
+            'Content-Type' => 'application/json',
+            'X-tranzila-api-app-key' => $this->publicKey,
+            'X-tranzila-api-request-time' => $time,
+            'X-tranzila-api-nonce' => $nonce,
+            'X-tranzila-api-access-token' => $accessToken,
+        ];
+    }
+
+    /**
+     * Send request to Tranzila API V2.
+     */
+    protected function sendApiV2Request(string $url, array $payload): array
+    {
+        $headers = $this->generateAuthHeaders();
+
+        $response = Http::withHeaders($headers)->post($url, $payload);
 
         if ($response->failed()) {
             return [
                 'success' => false,
                 'error' => 'Connection failed',
+                'status' => $response->status(),
+                'body' => $response->body(),
             ];
         }
 

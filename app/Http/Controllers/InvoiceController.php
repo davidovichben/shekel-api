@@ -12,7 +12,8 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Invoice::with('member');
+        $query = Invoice::with('member')
+            ->where('business_id', current_business_id());
 
         if ($request->has('status')) {
             $query->where('status', $request->status);

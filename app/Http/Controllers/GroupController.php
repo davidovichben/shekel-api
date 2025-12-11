@@ -13,7 +13,10 @@ class GroupController extends Controller
      */
     public function list()
     {
-        $groups = Group::select('id', 'name')->orderBy('name')->get();
+        $groups = Group::select('id', 'name')
+            ->where('business_id', current_business_id())
+            ->orderBy('name')
+            ->get();
 
         return response()->json($groups);
     }
@@ -26,7 +29,9 @@ class GroupController extends Controller
         $member = Member::findOrFail($memberId);
         $memberGroupIds = $member->groups()->pluck('groups.id');
 
-        $groups = Group::whereNotIn('id', $memberGroupIds)->get();
+        $groups = Group::where('business_id', current_business_id())
+            ->whereNotIn('id', $memberGroupIds)
+            ->get();
 
         return response()->json($groups);
     }

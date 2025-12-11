@@ -4,11 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Member extends Model
 {
     use HasFactory;
+
+    protected static function booted(): void
+    {
+        static::creating(function (Member $member) {
+            $member->business_id = current_business_id();
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -102,5 +110,10 @@ class Member extends Model
     public function groups(): BelongsToMany
     {
         return $this->belongsToMany(Group::class, 'member_groups');
+    }
+
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(Business::class);
     }
 }
