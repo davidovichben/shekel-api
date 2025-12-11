@@ -11,41 +11,7 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     /**
-     * Register a new user
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function register(Request $request): JsonResponse
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'User registered successfully',
-            'user' => $user,
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-        ], 201);
-    }
-
-    /**
      * Login user and create token
-     *
-     * @param Request $request
-     * @return JsonResponse
-     * @throws ValidationException
      */
     public function login(Request $request): JsonResponse
     {
@@ -54,7 +20,7 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::with('business')->where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
@@ -62,11 +28,17 @@ class AuthController extends Controller
             ]);
         }
 
+        // Revoke all existing tokens
+        $user->tokens()->delete();
+
+        // Create new token
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login successful',
-            'user' => $user,
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
             'access_token' => $token,
             'token_type' => 'Bearer',
         ]);
@@ -74,9 +46,6 @@ class AuthController extends Controller
 
     /**
      * Logout user (Revoke the token)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function logout(Request $request): JsonResponse
     {
@@ -88,30 +57,18 @@ class AuthController extends Controller
     }
 
     /**
-     * Get authenticated user
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * Get current authenticated user
      */
     public function user(Request $request): JsonResponse
     {
-        return response()->json([
-            'user' => $request->user(),
-        ]);
-    }
-
-    /**
-     * Logout from all devices (Revoke all tokens)
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function logoutAll(Request $request): JsonResponse
-    {
-        $request->user()->tokens()->delete();
+        $user = $request->user();
+        $user->load('business');
 
         return response()->json([
-            'message' => 'Logged out from all devices successfully',
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
         ]);
     }
 }

@@ -37,7 +37,11 @@ class Business extends Model
      *
      * @var array<int, string>
      */
-    protected $hidden = [];
+    protected $hidden = [
+        'id',
+        'created_at',
+        'updated_at',
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -74,5 +78,10 @@ class Business extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(Receipt::class);
     }
 }

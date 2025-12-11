@@ -35,10 +35,10 @@ class DebtController extends Controller
         return response()->json([
             'rows' => $rows,
             'counts' => [
-                'totalRows' => $debts->total(),
-                'totalPages' => $debts->lastPage(),
+                'total_rows' => $debts->total(),
+                'total_pages' => $debts->lastPage(),
             ],
-            'totalSum' => number_format($totalSum, 2, '.', ''),
+            'total_sum' => number_format($totalSum, 2, '.', ''),
         ]);
     }
 
@@ -433,8 +433,8 @@ class DebtController extends Controller
         return response()->json([
             'rows' => $rows,
             'counts' => [
-                'totalRows' => $debts->total(),
-                'totalPages' => $debts->lastPage(),
+                'total_rows' => $debts->total(),
+                'total_pages' => $debts->lastPage(),
             ],
         ]);
     }
@@ -560,14 +560,14 @@ class DebtController extends Controller
         return $debts->map(function ($debt) {
             return [
                 'id' => $debt->id,
-                'memberId' => $debt->member_id,
-                'memberName' => $debt->member ? $debt->member->full_name : null,
+                'member_id' => $debt->member_id,
+                'member_name' => $debt->member ? $debt->member->full_name : null,
                 'type' => $debt->type,
                 'amount' => $debt->amount,
                 'description' => $debt->description,
-                'gregorianDate' => $debt->due_date,
+                'due_date' => $debt->due_date,
                 'status' => $debt->status,
-                'lastReminderSentAt' => $debt->last_reminder_sent_at,
+                'last_reminder_sent_at' => $debt->last_reminder_sent_at,
             ];
         });
     }
@@ -642,16 +642,16 @@ class DebtController extends Controller
     {
         return [
             'id' => (string)$debt->id,
-            'memberId' => (string)$debt->member_id,
-            'memberName' => $debt->member ? $debt->member->full_name : null,
-            'debtType' => $debt->type,
+            'member_id' => (string)$debt->member_id,
+            'member_name' => $debt->member ? $debt->member->full_name : null,
+            'type' => $debt->type,
             'amount' => $debt->amount,
             'description' => $debt->description,
-            'gregorianDate' => $this->formatDateForResponse($debt->due_date),
+            'due_date' => $this->formatDateForResponse($debt->due_date),
             'status' => $debt->status,
-            'lastReminderSentAt' => $this->formatDateForResponse($debt->last_reminder_sent_at),
-            'createdAt' => $debt->created_at,
-            'updatedAt' => $debt->updated_at,
+            'last_reminder_sent_at' => $this->formatDateForResponse($debt->last_reminder_sent_at),
+            'created_at' => $debt->created_at,
+            'updated_at' => $debt->updated_at,
         ];
     }
 

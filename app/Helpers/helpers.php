@@ -2,13 +2,29 @@
 
 if (!function_exists('current_business_id')) {
     /**
-     * Get the current business ID.
-     * Currently returns hardcoded value, will be updated to use logged in user's business.
+     * Get the current business ID from the authenticated user.
      */
     function current_business_id(): int
     {
-        // TODO: Get from logged in user when authentication is properly set up
-        // return auth()->user()->business_id;
+        if (auth()->check()) {
+            return auth()->user()->business_id;
+        }
+
+        // Fallback for unauthenticated contexts (e.g., seeders, commands)
         return 1;
+    }
+}
+
+if (!function_exists('current_business')) {
+    /**
+     * Get the current business from the authenticated user.
+     */
+    function current_business(): ?\App\Models\Business
+    {
+        if (auth()->check()) {
+            return auth()->user()->business;
+        }
+
+        return null;
     }
 }
