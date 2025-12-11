@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\ExpenseController;
@@ -83,4 +84,8 @@ Route::middleware('auth.jwt')->group(function () {
 
     // Generic routes
     Route::get('banks', [GenericController::class, 'banks']);
+
+    // Billing routes
+    Route::post('billing/store', [BillingController::class, 'store']);
+    Route::post('billing/charge', [BillingController::class, 'charge']);
 });
