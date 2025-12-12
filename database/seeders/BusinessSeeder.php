@@ -25,6 +25,7 @@ class BusinessSeeder extends Seeder
                 'synagogue_phone' => '03-1234567',
                 'synagogue_address' => 'רחוב הרצל 1, תל אביב',
                 'synagogue_email' => 'synagogue@example.com',
+                'message_template' => 'שלום, זוהי הודעת תזכורת לתשלום חוב על סך [סכום החוב] מבית הכנסת ״אהל יצחק״, נבקשך להסדיר את התשלום בהקדם. בתודה מראש גבאי בית הכנסת',
             ]
         );
     }
