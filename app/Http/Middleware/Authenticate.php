@@ -35,6 +35,9 @@ class Authenticate
         // Load the user's business
         $user->load('business');
 
+        // Set the current access token on the user
+        $user->withAccessToken($accessToken);
+
         // Set the authenticated user
         auth()->setUser($user);
 

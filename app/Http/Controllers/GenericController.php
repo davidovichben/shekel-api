@@ -6,6 +6,7 @@ use App\Models\Bank;
 use App\Models\Debt;
 use App\Models\Expense;
 use App\Models\Member;
+use App\Models\Package;
 use App\Models\Receipt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,16 @@ class GenericController extends Controller
         $banks = Bank::orderBy('code')->get(['id', 'name']);
 
         return response()->json($banks);
+    }
+
+    /**
+     * Display a listing of all packages.
+     */
+    public function packages()
+    {
+        $packages = Package::all(['id', 'name', 'price', 'features', 'paid_features']);
+
+        return response()->json($packages);
     }
 
     /**

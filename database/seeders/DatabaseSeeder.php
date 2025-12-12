@@ -15,7 +15,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            // Business (first, no dependencies)
+            // Packages (first, no dependencies)
+            PackageSeeder::class,
+
+            // Business (depends on packages)
             BusinessSeeder::class,
 
             // Base tables (no dependencies)

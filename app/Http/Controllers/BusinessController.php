@@ -45,4 +45,33 @@ class BusinessController extends Controller
 
         return response()->json($business);
     }
+
+    /**
+     * Update the business default message template.
+     */
+    public function updateMessageTemplate(Request $request)
+    {
+        $business = Business::findOrFail(current_business_id());
+
+        $validated = $request->validate([
+            'message_template' => 'required|string',
+        ]);
+
+        $business->update($validated);
+
+        return response()->json($business);
+    }
+
+    /**
+     * Reset the business message template to default.
+     */
+    public function resetMessageTemplate()
+    {
+        $defaultTemplate = 'שלום, זוהי הודעת תזכורת לתשלום חוב על סך [סכום החוב] מבית הכנסת ״אהל יצחק״, נבקשך להסדיר את התשלום בהקדם. בתודה מראש גבאי בית הכנסת';
+
+        $business = Business::findOrFail(current_business_id());
+        $business->update(['message_template' => $defaultTemplate]);
+
+        return response()->json(['message_template' => $defaultTemplate]);
+    }
 }

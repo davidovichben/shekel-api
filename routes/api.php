@@ -12,6 +12,7 @@ use App\Http\Controllers\MemberCreditCardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\MemberBillingSettingsController;
 use App\Http\Controllers\MemberGroupController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,8 @@ Route::middleware('auth.jwt')->group(function () {
     // Business routes
     Route::get('business', [BusinessController::class, 'show']);
     Route::put('business', [BusinessController::class, 'update']);
+    Route::put('business/message-template', [BusinessController::class, 'updateMessageTemplate']);
+    Route::post('business/message-template/reset', [BusinessController::class, 'resetMessageTemplate']);
 
     // Additional expense routes (must be before apiResource to avoid route conflicts)
     Route::get('expenses/stats', [ExpenseController::class, 'stats']);
@@ -92,6 +95,7 @@ Route::middleware('auth.jwt')->group(function () {
 
     // Generic routes
     Route::get('banks', [GenericController::class, 'banks']);
+    Route::get('packages', [GenericController::class, 'packages']);
     Route::get('search', [GenericController::class, 'search']);
     Route::get('financial-data', [GenericController::class, 'financialData']);
     Route::get('dashboard/stats', [GenericController::class, 'dashboardStats']);
@@ -105,4 +109,9 @@ Route::middleware('auth.jwt')->group(function () {
     // Billing routes
     Route::post('billing/store', [BillingController::class, 'store']);
     Route::post('billing/charge', [BillingController::class, 'charge']);
+
+    // Notification routes
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::put('notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+    Route::put('notifications/{notification}/mark-read', [NotificationController::class, 'markRead']);
 });
