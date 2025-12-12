@@ -8,7 +8,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ExpensesExport implements FromCollection, WithHeadings, WithColumnWidths, WithStyles
+class ExpensesExport extends BaseExport implements FromCollection, WithHeadings, WithColumnWidths, WithStyles
 {
     protected $expenses;
 
@@ -50,14 +50,7 @@ class ExpensesExport implements FromCollection, WithHeadings, WithColumnWidths, 
 
     public function styles(Worksheet $sheet)
     {
-        $sheet->setRightToLeft(true);
-
-        $sheet->getStyle($sheet->calculateWorksheetDimension())->applyFromArray([
-            'font' => [
-                'name' => 'DejaVu Sans',
-            ],
-        ]);
-
+        $this->applyCommonStyles($sheet);
         return [];
     }
 }

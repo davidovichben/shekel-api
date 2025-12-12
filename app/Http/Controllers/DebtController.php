@@ -25,6 +25,14 @@ class DebtController extends Controller
         // Clone query to avoid affecting pagination query
         $totalSum = (float) (clone $query)->sum('debts.amount');
         
+        // Calculate status counts (respecting all filters except status)
+        $baseQuery = $this->buildDebtBaseQuery($request);
+        $statusCounts = [
+            'all' => (int) (clone $baseQuery)->count(),
+            'pending' => (int) (clone $baseQuery)->where('debts.status', 'pending')->count(),
+            'paid' => (int) (clone $baseQuery)->where('debts.status', 'paid')->count(),
+        ];
+        
         // Support limit and page parameters for pagination
         $perPage = $request->get('limit', 15);
         $page = $request->get('page', 1);
@@ -37,6 +45,9 @@ class DebtController extends Controller
             'counts' => [
                 'total_rows' => $debts->total(),
                 'total_pages' => $debts->lastPage(),
+                'all' => $statusCounts['all'],
+                'pending' => $statusCounts['pending'],
+                'paid' => $statusCounts['paid'],
             ],
             'total_sum' => number_format($totalSum, 2, '.', ''),
         ]);
@@ -437,6 +448,46 @@ class DebtController extends Controller
                 'total_pages' => $debts->lastPage(),
             ],
         ]);
+    }
+
+    /**
+     * Build base query with filters (excluding status) for counting.
+     */
+    private function buildDebtBaseQuery(Request $request)
+    {
+        $query = Debt::where('debts.business_id', current_business_id());
+
+        // Filter by member_id (backward compatibility)
+        if ($request->has('member_id')) {
+            $query->where('debts.member_id', $request->member_id);
+        }
+
+        // Filter by type (backward compatibility)
+        if ($request->has('type')) {
+            $query->where('debts.type', $request->type);
+        }
+
+        // Filter by date_from (start date)
+        if ($request->has('date_from') && $request->date_from !== null && $request->date_from !== '') {
+            $query->where('debts.due_date', '>=', $request->date_from);
+        }
+
+        // Filter by date_to (end date)
+        if ($request->has('date_to') && $request->date_to !== null && $request->date_to !== '') {
+            $query->where('debts.due_date', '<=', $request->date_to);
+        }
+
+        // Filter by should_bill (automatic payment approval)
+        if ($request->has('should_bill')) {
+            $shouldBill = filter_var($request->should_bill, FILTER_VALIDATE_BOOLEAN);
+            if ($shouldBill) {
+                $query->join('member_billing_settings', 'debts.member_id', '=', 'member_billing_settings.member_id')
+                      ->where('member_billing_settings.should_bill', true)
+                      ->select('debts.*');
+            }
+        }
+
+        return $query;
     }
 
     private function buildDebtQuery(Request $request)

@@ -13,6 +13,7 @@ use App\Http\Controllers\GroupController;
 use App\Http\Controllers\MemberBillingSettingsController;
 use App\Http\Controllers\MemberGroupController;
 use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -92,6 +93,14 @@ Route::middleware('auth.jwt')->group(function () {
     // Generic routes
     Route::get('banks', [GenericController::class, 'banks']);
     Route::get('search', [GenericController::class, 'search']);
+    Route::get('financial-data', [GenericController::class, 'financialData']);
+    Route::get('dashboard/stats', [GenericController::class, 'dashboardStats']);
+
+    // Report routes
+    Route::get('reports/expenses', [ReportController::class, 'expensesReport']);
+    Route::get('reports/donations', [ReportController::class, 'donationsReport']);
+    Route::get('reports/debts', [ReportController::class, 'debtsReport']);
+    Route::get('reports/balance', [ReportController::class, 'balanceReport']);
 
     // Billing routes
     Route::post('billing/store', [BillingController::class, 'store']);

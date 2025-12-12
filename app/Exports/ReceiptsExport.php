@@ -8,7 +8,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ReceiptsExport implements FromCollection, WithHeadings, WithColumnWidths, WithStyles
+class ReceiptsExport extends BaseExport implements FromCollection, WithHeadings, WithColumnWidths, WithStyles
 {
     protected $receipts;
 
@@ -52,14 +52,7 @@ class ReceiptsExport implements FromCollection, WithHeadings, WithColumnWidths, 
 
     public function styles(Worksheet $sheet)
     {
-        $sheet->setRightToLeft(true);
-
-        $sheet->getStyle($sheet->calculateWorksheetDimension())->applyFromArray([
-            'font' => [
-                'name' => 'DejaVu Sans',
-            ],
-        ]);
-
+        $this->applyCommonStyles($sheet);
         return [];
     }
 }

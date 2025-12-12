@@ -27,6 +27,14 @@ class ReceiptController extends Controller
         // Clone query to avoid affecting pagination query
         $totalSum = (float) (clone $query)->sum('receipts.total');
         
+        // Calculate status counts (respecting all filters except status)
+        $baseQuery = $this->buildReceiptBaseQuery($request);
+        $statusCounts = [
+            'all' => (int) (clone $baseQuery)->count(),
+            'pending' => (int) (clone $baseQuery)->where('receipts.status', 'pending')->count(),
+            'paid' => (int) (clone $baseQuery)->where('receipts.status', 'paid')->count(),
+        ];
+        
         // Support limit and page parameters for pagination
         $perPage = $request->get('limit', 15);
         $page = $request->get('page', 1);
@@ -39,6 +47,9 @@ class ReceiptController extends Controller
             'counts' => [
                 'totalRows' => $receipts->total(),
                 'totalPages' => $receipts->lastPage(),
+                'all' => $statusCounts['all'],
+                'pending' => $statusCounts['pending'],
+                'paid' => $statusCounts['paid'],
             ],
             'totalSum' => number_format($totalSum, 2, '.', ''),
         ]);
@@ -211,6 +222,41 @@ class ReceiptController extends Controller
         $extension = $fileType === 'xls' ? 'xlsx' : $fileType;
 
         return Excel::download(new ReceiptsExport($rows), "receipts.{$extension}", $writerType);
+    }
+
+    /**
+     * Build base query with filters (excluding status) for counting.
+     */
+    private function buildReceiptBaseQuery(Request $request)
+    {
+        $query = Receipt::where('business_id', current_business_id());
+
+        // Filter by user_id
+        if ($request->has('user_id') && $request->user_id !== null && $request->user_id !== '') {
+            $query->where('receipts.user_id', $request->user_id);
+        }
+
+        // Filter by type
+        if ($request->has('type') && $request->type !== null && $request->type !== '') {
+            $query->where('receipts.type', $request->type);
+        }
+
+        // Filter by payment_method
+        if ($request->has('payment_method') && $request->payment_method !== null && $request->payment_method !== '') {
+            $query->where('receipts.payment_method', $request->payment_method);
+        }
+
+        // Filter by date_from (start date)
+        if ($request->has('date_from') && $request->date_from !== null && $request->date_from !== '') {
+            $query->where('receipts.receipt_date', '>=', $request->date_from);
+        }
+
+        // Filter by date_to (end date)
+        if ($request->has('date_to') && $request->date_to !== null && $request->date_to !== '') {
+            $query->where('receipts.receipt_date', '<=', $request->date_to);
+        }
+
+        return $query;
     }
 
     /**

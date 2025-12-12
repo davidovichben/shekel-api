@@ -27,6 +27,14 @@ class ExpenseController extends Controller
         // Clone query to avoid affecting pagination query
         $totalSum = (float) (clone $query)->sum('expenses.amount');
         
+        // Calculate status counts (respecting all filters except status)
+        $baseQuery = $this->buildExpenseBaseQuery($request);
+        $statusCounts = [
+            'all' => (int) (clone $baseQuery)->count(),
+            'pending' => (int) (clone $baseQuery)->where('expenses.status', 'pending')->count(),
+            'paid' => (int) (clone $baseQuery)->where('expenses.status', 'paid')->count(),
+        ];
+        
         // Support limit and page parameters for pagination
         $perPage = $request->get('limit', 15);
         $page = $request->get('page', 1);
@@ -39,6 +47,9 @@ class ExpenseController extends Controller
             'counts' => [
                 'totalRows' => $expenses->total(),
                 'totalPages' => $expenses->lastPage(),
+                'all' => $statusCounts['all'],
+                'pending' => $statusCounts['pending'],
+                'paid' => $statusCounts['paid'],
             ],
             'totalSum' => number_format($totalSum, 2, '.', ''),
         ]);
@@ -270,6 +281,36 @@ class ExpenseController extends Controller
         $originalFilename = basename($expense->receipt);
         
         return response()->download($filePath, $originalFilename);
+    }
+
+    /**
+     * Build base query with filters (excluding status) for counting.
+     */
+    private function buildExpenseBaseQuery(Request $request)
+    {
+        $query = Expense::query();
+
+        // Filter by supplier_id
+        if ($request->has('supplier_id') && $request->supplier_id !== null && $request->supplier_id !== '') {
+            $query->where('expenses.supplier_id', $request->supplier_id);
+        }
+
+        // Filter by type
+        if ($request->has('type') && $request->type !== null && $request->type !== '') {
+            $query->where('expenses.type', $request->type);
+        }
+
+        // Filter by date_from (start date)
+        if ($request->has('date_from') && $request->date_from !== null && $request->date_from !== '') {
+            $query->where('expenses.date', '>=', $request->date_from);
+        }
+
+        // Filter by date_to (end date)
+        if ($request->has('date_to') && $request->date_to !== null && $request->date_to !== '') {
+            $query->where('expenses.date', '<=', $request->date_to);
+        }
+
+        return $query;
     }
 
     /**

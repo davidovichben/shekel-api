@@ -6,13 +6,9 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
-use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Events\BeforeExport;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 
-class ReceiptsPdfExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithStyles, WithCustomValueBinder, WithColumnWidths, WithEvents
+class ReceiptsPdfExport extends BasePdfExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths
 {
     protected $receipts;
 
@@ -57,27 +53,8 @@ class ReceiptsPdfExport extends DefaultValueBinder implements FromCollection, Wi
 
     public function styles(Worksheet $sheet)
     {
-        $sheet->setRightToLeft(true);
-
-        $sheet->getStyle('A1:H1')->applyFromArray([
-            'font' => ['bold' => true],
-            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT],
-        ]);
-
-        $sheet->getStyle($sheet->calculateWorksheetDimension())->applyFromArray([
-            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT],
-        ]);
-
+        $this->applyPdfStyles($sheet, 'A1:H1');
         return [];
-    }
-
-    public function registerEvents(): array
-    {
-        return [
-            BeforeExport::class => function (BeforeExport $event) {
-                $event->writer->getDelegate()->getProperties()->setCreator('Shekel');
-            },
-        ];
     }
 }
 
