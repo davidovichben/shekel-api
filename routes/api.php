@@ -21,6 +21,13 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::post('login', [AuthController::class, 'login']);
 
+// Tranzila routes (restricted to Tranzila IPs)
+Route::middleware('tranzila')->group(function () {
+    Route::match(['get', 'post'], 'billing/callback', [BillingController::class, 'callback']);
+    Route::get('billing/success', [BillingController::class, 'success']);
+    Route::get('billing/fail', [BillingController::class, 'fail']);
+});
+
 // Protected routes
 Route::middleware('auth.jwt')->group(function () {
     // Auth routes
@@ -117,8 +124,10 @@ Route::middleware('auth.jwt')->group(function () {
     Route::post('reports/{reportTypeId}/export/hashavshevet', [ReportController::class, 'exportToHashavshevet']);
 
     // Billing routes
-    Route::post('billing/store', [BillingController::class, 'store']);
+    Route::post('billing/member-payment', [BillingController::class, 'memberPayment']);
+    Route::post('billing/business-payment', [BillingController::class, 'businessPayment']);
     Route::post('billing/charge', [BillingController::class, 'charge']);
+    Route::post('billing/masav', [BillingController::class, 'masav']);
 
     // Notification routes
     Route::get('notifications', [NotificationController::class, 'index']);

@@ -110,7 +110,7 @@ class BalancePdfExport extends BasePdfExport implements FromCollection, WithHead
         foreach ($this->data['receipts'] as $receipt) {
             $rows[] = [
                 $receipt->description ?? '',
-                $receipt->receipt_date ? \Carbon\Carbon::parse($receipt->receipt_date)->format('d/m/Y') : '',
+                $receipt->date ? \Carbon\Carbon::parse($receipt->date)->format('d/m/Y') : '',
                 $receiptTypeLabels[$receipt->type] ?? ($receipt->type ?? ''),
                 $receiptStatusLabels[$receipt->status] ?? ($receipt->status ?? ''),
                 '',

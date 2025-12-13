@@ -23,12 +23,17 @@ class Receipt extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'receipt_number',
-        'user_id',
+        'business_id',
+        'member_id',
+        'credit_card_id',
+        'external_id',
+        'number',
         'total',
+        'installments',
         'status',
+        'failure_reason',
         'payment_method',
-        'receipt_date',
+        'date',
         'description',
         'type',
         'pdf_file',
@@ -50,16 +55,24 @@ class Receipt extends Model
     {
         return [
             'total' => 'decimal:2',
-            'receipt_date' => 'datetime',
+            'date' => 'datetime',
         ];
     }
 
     /**
-     * Get the user that owns the receipt.
+     * Get the member that owns the receipt.
      */
-    public function user(): BelongsTo
+    public function member(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Member::class);
+    }
+
+    /**
+     * Get the credit card used for the receipt.
+     */
+    public function creditCard(): BelongsTo
+    {
+        return $this->belongsTo(MemberCreditCard::class);
     }
 
     public function business(): BelongsTo

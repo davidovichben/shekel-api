@@ -56,15 +56,16 @@ class StatsController extends Controller
 
         // Search receipts by receipt number or description
         $receipts = Receipt::where('business_id', $businessId)
+            ->where('status', 'paid')
             ->where(function ($q) use ($query) {
-                $q->where('receipt_number', 'like', "%{$query}%")
+                $q->where('number', 'like', "%{$query}%")
                   ->orWhere('description', 'like', "%{$query}%");
             })
             ->limit(10)
             ->get()
             ->map(fn ($receipt) => [
                 'id' => $receipt->id,
-                'name' => $receipt->receipt_number,
+                'name' => $receipt->number,
             ]);
 
         return response()->json([
@@ -108,24 +109,22 @@ class StatsController extends Controller
             ->pluck('count', 'type')
             ->toArray();
 
-        // Get all receipts with counts per type
-        $receiptsQuery = Receipt::where('business_id', $businessId);
+        // Get all receipts with counts per type (only paid receipts)
+        $receiptsQuery = Receipt::where('business_id', $businessId)
+            ->where('status', 'paid');
         if ($dateFrom) {
-            $receiptsQuery->where('receipt_date', '>=', $dateFrom);
+            $receiptsQuery->where('date', '>=', $dateFrom);
         }
         if ($dateTo) {
-            $receiptsQuery->where('receipt_date', '<=', $dateTo);
-        }
-        if ($status) {
-            $receiptsQuery->where('status', $status);
+            $receiptsQuery->where('date', '<=', $dateTo);
         }
 
-        $receipts = $receiptsQuery->with('user')->get();
+        $receipts = $receiptsQuery->with('member')->get();
         $receiptCounts = Receipt::where('business_id', $businessId)
+            ->where('status', 'paid')
             ->select('type', DB::raw('COUNT(*) as count'))
-            ->when($dateFrom, fn($q) => $q->where('receipt_date', '>=', $dateFrom))
-            ->when($dateTo, fn($q) => $q->where('receipt_date', '<=', $dateTo))
-            ->when($status, fn($q) => $q->where('status', $status))
+            ->when($dateFrom, fn($q) => $q->where('date', '>=', $dateFrom))
+            ->when($dateTo, fn($q) => $q->where('date', '<=', $dateTo))
             ->groupBy('type')
             ->pluck('count', 'type')
             ->toArray();
@@ -206,14 +205,14 @@ class StatsController extends Controller
      */
     private function formatReceiptForUnified($receipt)
     {
-        $receiptNumber = $receipt->receipt_number ?: null;
-        $receiptDate = $receiptNumber ? $receipt->receipt_date : null;
+        $receiptNumber = $receipt->number ?: null;
+        $receiptDate = $receiptNumber ? $receipt->date : null;
 
         return [
             'id' => $receipt->id,
             'receiptNumber' => $receiptNumber,
-            'userId' => $receipt->user_id,
-            'userName' => $receipt->user ? $receipt->user->name : null,
+            'memberId' => $receipt->member_id,
+            'memberName' => $receipt->member ? $receipt->member->full_name : null,
             'total' => number_format((float)$receipt->total, 2, '.', ''),
             'status' => $receipt->status,
             'paymentMethod' => $receipt->payment_method,
@@ -258,9 +257,10 @@ class StatsController extends Controller
         $prevStartOfMonth = $prevMonthDate->copy()->startOfMonth();
         $prevEndOfMonth = $prevMonthDate->copy()->endOfMonth();
 
-        // Current month totals
+        // Current month totals (only paid receipts)
         $currentMonthDonations = (float) Receipt::where('business_id', $businessId)
-            ->whereBetween('receipt_date', [$startOfMonth, $endOfMonth])
+            ->where('status', 'paid')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->sum('total');
 
         $currentMonthExpenses = (float) Expense::whereBetween('date', [$startOfMonth, $endOfMonth])
@@ -268,7 +268,8 @@ class StatsController extends Controller
 
         // Previous month totals for percentage calculation
         $prevMonthDonations = (float) Receipt::where('business_id', $businessId)
-            ->whereBetween('receipt_date', [$prevStartOfMonth, $prevEndOfMonth])
+            ->where('status', 'paid')
+            ->whereBetween('date', [$prevStartOfMonth, $prevEndOfMonth])
             ->sum('total');
 
         $prevMonthExpenses = (float) Expense::whereBetween('date', [$prevStartOfMonth, $prevEndOfMonth])
@@ -296,7 +297,8 @@ class StatsController extends Controller
 
         // Last month balance data
         $lastMonthIncome = (float) Receipt::where('business_id', $businessId)
-            ->whereBetween('receipt_date', [$prevStartOfMonth, $prevEndOfMonth])
+            ->where('status', 'paid')
+            ->whereBetween('date', [$prevStartOfMonth, $prevEndOfMonth])
             ->sum('total');
 
         $lastMonthExpenses = (float) Expense::whereBetween('date', [$prevStartOfMonth, $prevEndOfMonth])
@@ -337,7 +339,8 @@ class StatsController extends Controller
             $monthEnd = $currentMonth->copy()->endOfMonth();
 
             $monthIncome = (float) Receipt::where('business_id', $businessId)
-                ->whereBetween('receipt_date', [$monthStart, $monthEnd])
+                ->where('status', 'paid')
+                ->whereBetween('date', [$monthStart, $monthEnd])
                 ->sum('total');
 
             $monthExpenses = (float) Expense::whereBetween('date', [$monthStart, $monthEnd])

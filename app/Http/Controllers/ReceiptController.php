@@ -60,7 +60,7 @@ class ReceiptController extends Controller
      */
     public function show(Receipt $receipt)
     {
-        $receipt->load('user');
+        $receipt->load('member');
         $data = $this->formatReceiptDetails($receipt);
 
         return response()->json($data);
@@ -72,18 +72,19 @@ class ReceiptController extends Controller
     public function update(Request $request, Receipt $receipt)
     {
         $validated = $request->validate([
-            'receipt_number' => 'sometimes|string|max:255|unique:receipts,receipt_number,' . $receipt->id,
-            'user_id' => 'sometimes|exists:users,id',
+            'number' => 'sometimes|string|max:255|unique:receipts,number,' . $receipt->id,
+            'member_id' => 'sometimes|exists:members,id',
             'total' => 'sometimes|numeric|min:0',
-            'status' => 'sometimes|in:pending,paid,cancelled,refunded',
+            'installments' => 'sometimes|integer|min:1|max:32',
+            'status' => 'sometimes|in:pending,paid,failed,cancelled,refunded',
             'payment_method' => 'nullable|string|max:255',
-            'receipt_date' => 'sometimes|date',
+            'date' => 'sometimes|date',
             'description' => 'nullable|string',
-            'type' => 'sometimes|in:vows,community_donations,external_donations,ascensions,online_donations,membership_fees,other',
+            'type' => 'sometimes|in:general,vows,community_donations,external_donations,ascensions,online_donations,membership_fees,other',
         ]);
 
         $receipt->update($validated);
-        $receipt->load('user');
+        $receipt->load('member');
         $data = $this->formatReceiptDetails($receipt);
         
         return response()->json($data);
@@ -121,8 +122,8 @@ class ReceiptController extends Controller
         }
 
         $filePath = Storage::disk('public')->path($receipt->pdf_file);
-        $filename = 'receipt_' . $receipt->receipt_number . '.pdf';
-        
+        $filename = 'receipt_' . $receipt->number . '.pdf';
+
         return response()->download($filePath, $filename);
     }
 
@@ -134,8 +135,8 @@ class ReceiptController extends Controller
         $validated = $request->validate([
             'ids' => 'nullable|array',
             'ids.*' => 'integer|exists:receipts,id',
-            'status' => 'nullable|string|in:pending,paid,cancelled,refunded',
-            'type' => 'nullable|string|in:vows,community_donations,external_donations,ascensions,online_donations,membership_fees,other',
+            'status' => 'nullable|string|in:pending,paid,failed,cancelled,refunded',
+            'type' => 'nullable|string|in:general,vows,community_donations,external_donations,ascensions,online_donations,membership_fees,other',
             'user_id' => 'nullable|integer|exists:users,id',
             'payment_method' => 'nullable|string',
             'date_from' => 'nullable|date',
@@ -145,7 +146,7 @@ class ReceiptController extends Controller
 
         // Build query based on filters
         if (!empty($validated['ids'])) {
-            $query = Receipt::with('user')->whereIn('id', $validated['ids']);
+            $query = Receipt::with('member')->whereIn('id', $validated['ids']);
         } else {
             $query = $this->buildReceiptQuery($request);
         }
@@ -168,11 +169,11 @@ class ReceiptController extends Controller
         }
 
         if (!empty($validated['date_from'])) {
-            $query->where('receipts.receipt_date', '>=', $validated['date_from']);
+            $query->where('receipts.date', '>=', $validated['date_from']);
         }
 
         if (!empty($validated['date_to'])) {
-            $query->where('receipts.receipt_date', '<=', $validated['date_to']);
+            $query->where('receipts.date', '<=', $validated['date_to']);
         }
 
         $receipts = $query->get();
@@ -248,12 +249,12 @@ class ReceiptController extends Controller
 
         // Filter by date_from (start date)
         if ($request->has('date_from') && $request->date_from !== null && $request->date_from !== '') {
-            $query->where('receipts.receipt_date', '>=', $request->date_from);
+            $query->where('receipts.date', '>=', $request->date_from);
         }
 
         // Filter by date_to (end date)
         if ($request->has('date_to') && $request->date_to !== null && $request->date_to !== '') {
-            $query->where('receipts.receipt_date', '<=', $request->date_to);
+            $query->where('receipts.date', '<=', $request->date_to);
         }
 
         return $query;
@@ -264,7 +265,7 @@ class ReceiptController extends Controller
      */
     private function buildReceiptQuery(Request $request)
     {
-        $query = Receipt::with('user');
+        $query = Receipt::with('member');
         
         $needsUserJoin = false;
 
@@ -290,12 +291,12 @@ class ReceiptController extends Controller
 
         // Filter by date_from (start date)
         if ($request->has('date_from') && $request->date_from !== null && $request->date_from !== '') {
-            $query->where('receipts.receipt_date', '>=', $request->date_from);
+            $query->where('receipts.date', '>=', $request->date_from);
         }
 
         // Filter by date_to (end date)
         if ($request->has('date_to') && $request->date_to !== null && $request->date_to !== '') {
-            $query->where('receipts.receipt_date', '<=', $request->date_to);
+            $query->where('receipts.date', '<=', $request->date_to);
         }
 
         // Handle sorting
@@ -310,7 +311,8 @@ class ReceiptController extends Controller
             
             $sortMap = [
                 'total' => 'receipts.total',
-                'receipt_date' => 'receipts.receipt_date',
+                'receipt_date' => 'receipts.date',
+                'date' => 'receipts.date',
                 'status' => 'receipts.status',
                 'type' => 'receipts.type',
             ];
@@ -325,20 +327,21 @@ class ReceiptController extends Controller
 
             // Map sort_by values to database columns
             $sortMap = [
-                'receipt_date' => 'receipts.receipt_date',
+                'receipt_date' => 'receipts.date',
+                'date' => 'receipts.date',
                 'amount' => 'receipts.total',
                 'total' => 'receipts.total',
                 'total_amount' => 'receipts.total', // Backward compatibility
                 'type' => 'receipts.type',
                 'status' => 'receipts.status',
                 'payment_method' => 'receipts.payment_method',
-                'user' => 'users.name',
+                'member' => 'members.full_name',
             ];
 
             $sortBy = $sortBy ?? 'created_at';
             
-            // For user sorting, we need to join with users table
-            if ($sortBy === 'user') {
+            // For member sorting, we need to join with members table
+            if ($sortBy === 'member') {
                 $needsUserJoin = true;
             } else {
                 $dbColumn = $sortMap[$sortBy] ?? 'receipts.created_at';
@@ -346,11 +349,11 @@ class ReceiptController extends Controller
             }
         }
 
-        // Apply joins if needed for user sorting
+        // Apply joins if needed for member sorting
         if ($needsUserJoin) {
-            $query->leftJoin('users', 'receipts.user_id', '=', 'users.id')
+            $query->leftJoin('members', 'receipts.member_id', '=', 'members.id')
                   ->select('receipts.*')
-                  ->orderBy('users.name', $sortOrder);
+                  ->orderBy('members.full_name', $sortOrder);
         }
 
         return $query;
@@ -362,15 +365,15 @@ class ReceiptController extends Controller
     private function formatReceiptRows($receipts)
     {
         return $receipts->map(function ($receipt) {
-            // If receipt_number is empty/null, receipt_date should also be null
-            $receiptNumber = $receipt->receipt_number ?: null;
-            $receiptDate = $receiptNumber ? $receipt->receipt_date : null;
-            
+            // If number is empty/null, date should also be null
+            $receiptNumber = $receipt->number ?: null;
+            $receiptDate = $receiptNumber ? $receipt->date : null;
+
             return [
                 'id' => $receipt->id,
                 'receiptNumber' => $receiptNumber,
-                'userId' => $receipt->user_id,
-                'userName' => $receipt->user ? $receipt->user->name : null,
+                'memberId' => $receipt->member_id,
+                'memberName' => $receipt->member ? $receipt->member->full_name : null,
                 'total' => number_format((float)$receipt->total, 2, '.', ''),
                 'status' => $receipt->status,
                 'paymentMethod' => $receipt->payment_method,
@@ -386,15 +389,15 @@ class ReceiptController extends Controller
      */
     private function formatReceiptDetails(Receipt $receipt)
     {
-        // If receipt_number is empty/null, receipt_date should also be null
-        $receiptNumber = $receipt->receipt_number ?: null;
-        $receiptDate = $receiptNumber ? $receipt->receipt_date : null;
-        
+        // If number is empty/null, date should also be null
+        $receiptNumber = $receipt->number ?: null;
+        $receiptDate = $receiptNumber ? $receipt->date : null;
+
         return [
             'id' => (string)$receipt->id,
             'receiptNumber' => $receiptNumber,
-            'userId' => $receipt->user_id ? (string)$receipt->user_id : null,
-            'userName' => $receipt->user ? $receipt->user->name : null,
+            'memberId' => $receipt->member_id ? (string)$receipt->member_id : null,
+            'memberName' => $receipt->member ? $receipt->member->full_name : null,
             'total' => number_format((float)$receipt->total, 2, '.', ''),
             'status' => $receipt->status,
             'paymentMethod' => $receipt->payment_method,
@@ -430,12 +433,12 @@ class ReceiptController extends Controller
 
         return $receipts->map(function ($receipt) use ($typeLabels, $statusLabels) {
             return [
-                $receipt->receipt_number ?? '',
-                $receipt->user ? $receipt->user->name : '',
+                $receipt->number ?? '',
+                $receipt->member ? $receipt->member->full_name : '',
                 number_format((float)$receipt->total, 2, '.', ''),
                 $statusLabels[$receipt->status] ?? $receipt->status,
                 $receipt->payment_method ?? '',
-                $receipt->receipt_date ? $this->formatDateForResponse($receipt->receipt_date) : '',
+                $receipt->date ? $this->formatDateForResponse($receipt->date) : '',
                 $receipt->description ?? '',
                 $typeLabels[$receipt->type] ?? $receipt->type,
             ];
@@ -466,8 +469,8 @@ class ReceiptController extends Controller
 
         // Reversed order for RTL PDF layout (matching headings)
         return $receipts->map(function ($receipt) use ($typeLabels, $statusLabels) {
-            $date = $receipt->receipt_date ? $this->formatDateForResponse($receipt->receipt_date) : '';
-            
+            $date = $receipt->date ? $this->formatDateForResponse($receipt->date) : '';
+
             return [
                 $typeLabels[$receipt->type] ?? ($receipt->type ?? ''),
                 $receipt->description ?? '',
@@ -475,8 +478,8 @@ class ReceiptController extends Controller
                 $receipt->payment_method ?? '',
                 $statusLabels[$receipt->status] ?? ($receipt->status ?? ''),
                 number_format((float)($receipt->total ?? 0), 2, '.', ''),
-                $receipt->user ? ($receipt->user->name ?? '') : '',
-                $receipt->receipt_number ?? '',
+                $receipt->member ? ($receipt->member->full_name ?? '') : '',
+                $receipt->number ?? '',
             ];
         });
     }
@@ -520,12 +523,14 @@ class ReceiptController extends Controller
         $startOfMonth = $monthDate->copy()->startOfMonth();
         $endOfMonth = $monthDate->copy()->endOfMonth();
 
-        // Calculate monthly total
-        $monthlyTotal = (float) Receipt::whereBetween('receipt_date', [$startOfMonth, $endOfMonth])
+        // Calculate monthly total (only paid receipts)
+        $monthlyTotal = (float) Receipt::where('status', 'paid')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->sum('total');
 
-        // Category distribution
-        $categoryDistribution = Receipt::whereBetween('receipt_date', [$startOfMonth, $endOfMonth])
+        // Category distribution (only paid receipts)
+        $categoryDistribution = Receipt::where('status', 'paid')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->select('type', DB::raw('SUM(total) as total'))
             ->groupBy('type')
             ->get()
@@ -550,7 +555,8 @@ class ReceiptController extends Controller
             $monthStart = $currentMonth->copy()->startOfMonth();
             $monthEnd = $currentMonth->copy()->endOfMonth();
             
-            $monthTotal = (float) Receipt::whereBetween('receipt_date', [$monthStart, $monthEnd])
+            $monthTotal = (float) Receipt::where('status', 'paid')
+                ->whereBetween('date', [$monthStart, $monthEnd])
                 ->sum('total');
             
             $trend[] = [
@@ -560,7 +566,7 @@ class ReceiptController extends Controller
         }
 
         // Uncollected receipts for the specified month (status = pending)
-        $uncollectedTotal = (float) Receipt::whereBetween('receipt_date', [$startOfMonth, $endOfMonth])
+        $uncollectedTotal = (float) Receipt::whereBetween('date', [$startOfMonth, $endOfMonth])
             ->where('status', 'pending')
             ->sum('total');
         

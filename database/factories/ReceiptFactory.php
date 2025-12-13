@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -22,15 +21,13 @@ class ReceiptFactory extends Factory
         $totalAmount = $subtotal + $taxAmount;
 
         return [
-            'receipt_number' => 'RCP-' . fake()->unique()->numerify('######'),
-            'user_id' => User::factory(),
-            'total_amount' => $totalAmount,
-            'tax_amount' => $taxAmount,
-            'subtotal' => $subtotal,
+            'number' => 'RCP-' . fake()->unique()->numerify('######'),
+            'member_id' => null,
+            'total' => $totalAmount,
             'status' => fake()->randomElement(['pending', 'paid', 'cancelled', 'refunded']),
             'payment_method' => fake()->randomElement(['cash', 'credit_card', 'debit_card', 'paypal', 'bank_transfer']),
-            'receipt_date' => fake()->dateTimeBetween('-1 year', 'now'),
-            'notes' => fake()->optional()->sentence(),
+            'date' => fake()->dateTimeBetween('-1 year', 'now'),
+            'description' => fake()->optional()->sentence(),
         ];
     }
 

@@ -84,8 +84,9 @@ class ReportController extends Controller
         $endOfMonth = $now->copy()->endOfMonth();
 
         $receipts = Receipt::where('business_id', $businessId)
-            ->whereBetween('receipt_date', [$startOfMonth, $endOfMonth])
-            ->with('user')
+            ->where('status', 'paid')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->with('member')
             ->get();
 
         if ($receipts->isEmpty()) {
@@ -177,7 +178,8 @@ class ReportController extends Controller
 
         // Get receipts and expenses for current month
         $receipts = Receipt::where('business_id', $businessId)
-            ->whereBetween('receipt_date', [$startOfMonth, $endOfMonth])
+            ->where('status', 'paid')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->get();
         
         $expenses = Expense::whereBetween('date', [$startOfMonth, $endOfMonth])
@@ -287,8 +289,8 @@ class ReportController extends Controller
         ];
 
         return $receipts->map(function ($receipt) use ($typeLabels, $statusLabels, $paymentMethodLabels) {
-            $date = $receipt->receipt_date ? Carbon::parse($receipt->receipt_date)->format('d/m/Y') : '';
-            
+            $date = $receipt->date ? Carbon::parse($receipt->date)->format('d/m/Y') : '';
+
             return [
                 $typeLabels[$receipt->type] ?? ($receipt->type ?? ''),
                 $receipt->description ?? '',
@@ -296,8 +298,8 @@ class ReportController extends Controller
                 $paymentMethodLabels[$receipt->payment_method] ?? ($receipt->payment_method ?? ''),
                 $statusLabels[$receipt->status] ?? ($receipt->status ?? ''),
                 number_format((float)$receipt->total, 2, '.', ''),
-                $receipt->user ? ($receipt->user->name ?? '') : '',
-                $receipt->receipt_number ?? '',
+                $receipt->member ? ($receipt->member->full_name ?? '') : '',
+                $receipt->number ?? '',
             ];
         });
     }
