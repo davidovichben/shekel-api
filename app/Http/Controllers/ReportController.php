@@ -18,6 +18,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
@@ -553,35 +554,56 @@ class ReportController extends Controller
      */
     private function fetchIncomeData($businessId, $dateFrom, $dateTo, $filters, $sortBy, $sortOrder): Collection
     {
-        $query = Receipt::where('business_id', $businessId)
-            ->with('user');
+        // Check if old schema exists (receipt_date, user_id, receipt_number) or new schema (date, member_id, number)
+        $hasOldSchema = Schema::hasColumn('receipts', 'receipt_date');
+        $dateColumn = $hasOldSchema ? 'receipt_date' : 'date';
+        $memberColumn = $hasOldSchema ? 'user_id' : 'member_id';
+        
+        $query = Receipt::where('business_id', $businessId);
+        
+        // Load member relationship - check if it exists
+        if (Schema::hasColumn('receipts', 'member_id')) {
+            $query->with('member');
+        } else {
+            // Old schema - try to load user and map to member
+            $query->with('user');
+        }
 
         if ($dateFrom) {
-            $query->where('receipt_date', '>=', $dateFrom);
+            $query->where($dateColumn, '>=', $dateFrom);
         }
         if ($dateTo) {
-            $query->where('receipt_date', '<=', $dateTo);
+            $query->where($dateColumn, '<=', $dateTo);
         }
 
-        if (isset($filters['type'])) {
+        if (isset($filters['type']) && $filters['type'] !== '') {
             $query->where('type', $filters['type']);
         }
-        if (isset($filters['status'])) {
+        if (isset($filters['status']) && $filters['status'] !== '') {
             $query->where('status', $filters['status']);
         }
-        if (isset($filters['payment_method'])) {
+        if (isset($filters['payment_method']) && $filters['payment_method'] !== '') {
             $query->where('payment_method', $filters['payment_method']);
         }
 
         // Handle sorting - map sortBy to actual column names
         if ($sortBy === 'payer_name') {
-            $query->leftJoin('users', 'receipts.user_id', '=', 'users.id')
-                  ->select('receipts.*')
-                  ->orderBy('users.name', $sortOrder);
+            if (Schema::hasColumn('receipts', 'member_id')) {
+                $query->leftJoin('members', 'receipts.member_id', '=', 'members.id')
+                      ->select('receipts.*')
+                      ->orderBy('members.first_name', $sortOrder)
+                      ->orderBy('members.last_name', $sortOrder);
+            } else {
+                // Old schema - join users table
+                $query->leftJoin('users', 'receipts.user_id', '=', 'users.id')
+                      ->select('receipts.*')
+                      ->orderBy('users.name', $sortOrder);
+            }
         } else {
             // Map sort options to actual column names
             $sortColumnMap = [
-                'receipt_date' => 'receipts.receipt_date',
+                'receipt_date' => "receipts.{$dateColumn}",
+                'date' => "receipts.{$dateColumn}",
                 'amount' => 'receipts.total',
                 'type' => 'receipts.type',
                 'status' => 'receipts.status',
@@ -756,6 +778,7 @@ class ReportController extends Controller
                 'member_number' => 'members.member_number',
                 'type' => 'members.type',
                 'created_at' => 'members.created_at',
+                'joined_at' => 'members.created_at', // joined_at maps to created_at
                 'receipt_date' => 'members.created_at',
                 'date' => 'members.created_at',
                 'due_date' => 'members.created_at',
@@ -775,10 +798,14 @@ class ReportController extends Controller
     {
         $threeMonthsAgo = Carbon::now()->subMonths(3);
         
+        // Check if old schema exists
+        $dateColumn = Schema::hasColumn('receipts', 'receipt_date') ? 'receipt_date' : 'date';
+        $memberColumn = Schema::hasColumn('receipts', 'member_id') ? 'member_id' : 'user_id';
+        
         $membersWithDonations = Receipt::where('business_id', $businessId)
-            ->where('receipt_date', '>=', $threeMonthsAgo)
+            ->where($dateColumn, '>=', $threeMonthsAgo)
             ->distinct()
-            ->pluck('user_id')
+            ->pluck($memberColumn)
             ->filter()
             ->toArray();
 
@@ -877,72 +904,113 @@ class ReportController extends Controller
      */
     private function getColumnValue($item, string $columnId, array $typeLabels, array $statusLabels, array $paymentMethodLabels, array $frequencyLabels, string $reportTypeId)
     {
+        $emptyValue = '--';
+        
         switch ($columnId) {
             // Receipt/Income columns
             case 'receipt_number':
-                return $item->receipt_number ?? '';
+                // Support both old schema (receipt_number) and new schema (number)
+                $number = $item->number ?? $item->receipt_number ?? null;
+                return $number ? $number : $emptyValue;
             case 'receipt_date':
-                return $item->receipt_date ? Carbon::parse($item->receipt_date)->format('d/m/Y') : '';
+                // Support both old schema (receipt_date) and new schema (date)
+                $dateField = $item->date ?? $item->receipt_date ?? null;
+                return $dateField ? Carbon::parse($dateField)->format('d/m/Y') : $emptyValue;
             case 'hebrew_date':
-                // For receipts/income, use receipt_date; for expenses, use date
-                $dateField = $item->receipt_date ?? $item->date ?? null;
-                return $dateField ? $this->formatHebrewDate($dateField) : '';
+                // Support both old schema (receipt_date) and new schema (date)
+                $dateField = $item->date ?? $item->receipt_date ?? null;
+                return $dateField ? $this->formatHebrewDate($dateField) : $emptyValue;
             case 'payer_name':
-                return $item->user ? ($item->user->name ?? '') : '';
+                // Support both old schema (user) and new schema (member)
+                if ($item->member) {
+                    $name = $item->member->full_name ?? null;
+                    return $name ? $name : $emptyValue;
+                } elseif (isset($item->user)) {
+                    // Old schema - user relationship
+                    $name = $item->user->name ?? null;
+                    return $name ? $name : $emptyValue;
+                }
+                return $emptyValue;
             case 'amount':
                 if (isset($item->total)) {
-                    return number_format((float)$item->total, 2, '.', '');
+                    $amount = (float)$item->total;
+                    return $amount > 0 ? number_format($amount, 2, '.', '') : $emptyValue;
                 }
-                return number_format((float)($item->amount ?? 0), 2, '.', '');
+                $amount = (float)($item->amount ?? 0);
+                return $amount > 0 ? number_format($amount, 2, '.', '') : $emptyValue;
             case 'type':
                 $type = $item->type ?? '';
+                if (empty($type)) {
+                    return $emptyValue;
+                }
                 return $typeLabels[$type] ?? $type;
             case 'payment_method':
                 $method = $item->payment_method ?? '';
+                if (empty($method)) {
+                    return $emptyValue;
+                }
                 return $paymentMethodLabels[$method] ?? $method;
             case 'status':
                 $status = $item->status ?? '';
+                if (empty($status)) {
+                    return $emptyValue;
+                }
                 return $statusLabels[$status] ?? $status;
             case 'description':
-                return $item->description ?? '';
+                $desc = $item->description ?? null;
+                return $desc ? $desc : $emptyValue;
             
             // Expense columns
             case 'date':
-                return $item->date ? Carbon::parse($item->date)->format('d/m/Y') : '';
+                return $item->date ? Carbon::parse($item->date)->format('d/m/Y') : $emptyValue;
             case 'supplier':
-                return $item->supplier ? $item->supplier->full_name : '';
+                $supplierName = $item->supplier ? $item->supplier->full_name : null;
+                return $supplierName ? $supplierName : $emptyValue;
             case 'frequency':
                 $freq = $item->frequency ?? '';
+                if (empty($freq)) {
+                    return $emptyValue;
+                }
                 return $frequencyLabels[$freq] ?? $freq;
             
             // Debt columns
             case 'debtor_name':
-                return $item->member ? $item->member->full_name : '';
+                $debtorName = $item->member ? $item->member->full_name : null;
+                return $debtorName ? $debtorName : $emptyValue;
             case 'due_date':
-                return $item->due_date ? Carbon::parse($item->due_date)->format('d/m/Y') : '';
+                return $item->due_date ? Carbon::parse($item->due_date)->format('d/m/Y') : $emptyValue;
             case 'hebrew_due_date':
-                return $item->due_date ? $this->formatHebrewDate($item->due_date) : '';
+                return $item->due_date ? $this->formatHebrewDate($item->due_date) : $emptyValue;
             case 'last_reminder':
-                return $item->last_reminder_sent_at ? Carbon::parse($item->last_reminder_sent_at)->format('d/m/Y') : '';
+                return $item->last_reminder_sent_at ? Carbon::parse($item->last_reminder_sent_at)->format('d/m/Y') : $emptyValue;
             
             // Member columns
             case 'member_number':
-                return $item->member_number ?? '';
+                $memberNum = $item->member_number ?? null;
+                return $memberNum ? $memberNum : $emptyValue;
             case 'full_name':
-                return $item->full_name ?? '';
+                $fullName = $item->full_name ?? '';
+                return $fullName ? $fullName : $emptyValue;
+            case 'joined_at':
+                return $item->created_at ? Carbon::parse($item->created_at)->format('d/m/Y') : $emptyValue;
             case 'email':
-                return $item->email ?? '';
+                $email = $item->email ?? null;
+                return $email ? $email : $emptyValue;
             case 'mobile':
-                return $item->mobile ?? '';
+                $mobile = $item->mobile ?? null;
+                return $mobile ? $mobile : $emptyValue;
             case 'phone':
-                return $item->phone ?? '';
+                $phone = $item->phone ?? null;
+                return $phone ? $phone : $emptyValue;
             case 'address':
-                return $item->address ?? '';
+                $address = $item->address ?? null;
+                return $address ? $address : $emptyValue;
             case 'city':
-                return $item->city ?? '';
+                $city = $item->city ?? null;
+                return $city ? $city : $emptyValue;
             
             default:
-                return '';
+                return $emptyValue;
         }
     }
 

@@ -97,6 +97,11 @@ Route::middleware('auth.jwt')->group(function () {
     Route::get('groups/list', [GroupController::class, 'list']);
     Route::get('members/{memberId}/available-groups', [GroupController::class, 'index']);
     Route::post('groups', [GroupController::class, 'store']);
+    Route::get('groups/{groupId}', [GroupController::class, 'show']);
+    Route::get('groups/{groupId}/members', [GroupController::class, 'members']);
+    Route::put('groups/{groupId}', [GroupController::class, 'update']);
+    Route::post('groups/{groupId}/members', [GroupController::class, 'addMember']);
+    Route::delete('groups/{groupId}/members/{memberId}', [GroupController::class, 'removeMember']);
 
     // Member billing settings routes
     Route::get('members/{memberId}/billing-settings', [MemberBillingSettingsController::class, 'show']);

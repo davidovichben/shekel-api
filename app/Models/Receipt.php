@@ -68,6 +68,14 @@ class Receipt extends Model
     }
 
     /**
+     * Get the user that owns the receipt (old schema - for backward compatibility).
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
      * Get the credit card used for the receipt.
      */
     public function creditCard(): BelongsTo

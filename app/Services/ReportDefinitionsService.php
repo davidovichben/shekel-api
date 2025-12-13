@@ -377,6 +377,13 @@ class ReportDefinitionsService
         $config = $this->getMembersActiveConfig();
         $config['reportName'] = 'דוח חברים שהצטרפו בשלושת החודשים האחרונים';
         $config['supportsDateRange'] = false; // Date range is fixed to last 3 months
+        
+        // Add joined_at column for recent members
+        $config['columns'][] = ['id' => 'joined_at', 'label' => 'הצטרף בתאריך', 'required' => false];
+        
+        // Add joined_at to sort options
+        $config['sortOptions'][] = ['value' => 'joined_at', 'label' => 'תאריך הצטרפות'];
+        
         return $config;
     }
 
