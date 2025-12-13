@@ -15,6 +15,7 @@ use App\Http\Controllers\MemberGroupController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\StatsController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -97,9 +98,11 @@ Route::middleware('auth.jwt')->group(function () {
     // Generic routes
     Route::get('banks', [GenericController::class, 'banks']);
     Route::get('packages', [GenericController::class, 'packages']);
-    Route::get('search', [GenericController::class, 'search']);
-    Route::get('financial-data', [GenericController::class, 'financialData']);
-    Route::get('dashboard/stats', [GenericController::class, 'dashboardStats']);
+
+    // Stats routes
+    Route::get('search', [StatsController::class, 'search']);
+    Route::get('financial-data', [StatsController::class, 'financialData']);
+    Route::get('stats', [StatsController::class, 'index']);
 
     // Report routes
     Route::get('reports/expenses', [ReportController::class, 'expensesReport']);
