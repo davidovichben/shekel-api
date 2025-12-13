@@ -109,6 +109,12 @@ Route::middleware('auth.jwt')->group(function () {
     Route::get('reports/donations', [ReportController::class, 'donationsReport']);
     Route::get('reports/debts', [ReportController::class, 'debtsReport']);
     Route::get('reports/balance', [ReportController::class, 'balanceReport']);
+    
+    // New Reports Feature routes
+    Route::get('reports/categories', [ReportController::class, 'getCategories']);
+    Route::get('reports/{reportTypeId}/config', [ReportController::class, 'getReportConfig']);
+    Route::post('reports/{reportTypeId}/generate', [ReportController::class, 'generateReport']);
+    Route::post('reports/{reportTypeId}/export/hashavshevet', [ReportController::class, 'exportToHashavshevet']);
 
     // Billing routes
     Route::post('billing/store', [BillingController::class, 'store']);

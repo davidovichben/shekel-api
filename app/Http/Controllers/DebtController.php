@@ -561,20 +561,20 @@ class DebtController extends Controller
         // Handle sorting
         if ($request->has('sort') && !$request->has('sort_by')) {
             // Legacy sort parameter
-            $sortColumn = $request->get('sort', 'created_at');
-            $sortDirection = str_starts_with($sortColumn, '-') ? 'desc' : 'asc';
-            $sortColumn = ltrim($sortColumn, '-');
-            
-            $sortMap = [
+        $sortColumn = $request->get('sort', 'created_at');
+        $sortDirection = str_starts_with($sortColumn, '-') ? 'desc' : 'asc';
+        $sortColumn = ltrim($sortColumn, '-');
+
+        $sortMap = [
                 'amount' => 'debts.amount',
                 'gregorianDate' => 'debts.due_date',
                 'dueDate' => 'debts.due_date',
                 'status' => 'debts.status',
                 'type' => 'debts.type',
-            ];
-            
+        ];
+
             $dbColumn = $sortMap[$sortColumn] ?? 'debts.created_at';
-            $query->orderBy($dbColumn, $sortDirection);
+        $query->orderBy($dbColumn, $sortDirection);
         } else {
             // New sort_by and sort_order parameters
             $sortBy = $sortBy ?? 'created_at';

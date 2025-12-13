@@ -14,12 +14,12 @@ return new class extends Migration
     {
         // Members
         if (!Schema::hasColumn('members', 'business_id')) {
-            Schema::table('members', function (Blueprint $table) {
-                $table->unsignedBigInteger('business_id')->after('id')->nullable();
-            });
-            DB::table('members')->update(['business_id' => 1]);
-            Schema::table('members', function (Blueprint $table) {
-                $table->unsignedBigInteger('business_id')->nullable(false)->change();
+        Schema::table('members', function (Blueprint $table) {
+            $table->unsignedBigInteger('business_id')->after('id')->nullable();
+        });
+        DB::table('members')->update(['business_id' => 1]);
+        Schema::table('members', function (Blueprint $table) {
+            $table->unsignedBigInteger('business_id')->nullable(false)->change();
             });
             Schema::table('members', function (Blueprint $table) {
                 $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
@@ -29,51 +29,51 @@ return new class extends Migration
             DB::table('members')->whereNull('business_id')->update(['business_id' => 1]);
             if (!$this->hasForeignKey('members', 'members_business_id_foreign')) {
                 Schema::table('members', function (Blueprint $table) {
-                    $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
-                });
+            $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
+        });
             }
         }
 
         // Debts
         if (!Schema::hasColumn('debts', 'business_id')) {
-            Schema::table('debts', function (Blueprint $table) {
-                $table->unsignedBigInteger('business_id')->after('id')->nullable();
+        Schema::table('debts', function (Blueprint $table) {
+            $table->unsignedBigInteger('business_id')->after('id')->nullable();
+        });
+        DB::table('debts')->update(['business_id' => 1]);
+        Schema::table('debts', function (Blueprint $table) {
+            $table->unsignedBigInteger('business_id')->nullable(false)->change();
             });
-            DB::table('debts')->update(['business_id' => 1]);
             Schema::table('debts', function (Blueprint $table) {
-                $table->unsignedBigInteger('business_id')->nullable(false)->change();
-            });
-            Schema::table('debts', function (Blueprint $table) {
-                $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
-            });
+            $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
+        });
         }
 
         // Groups
         if (!Schema::hasColumn('groups', 'business_id')) {
-            Schema::table('groups', function (Blueprint $table) {
-                $table->unsignedBigInteger('business_id')->after('id')->nullable();
+        Schema::table('groups', function (Blueprint $table) {
+            $table->unsignedBigInteger('business_id')->after('id')->nullable();
+        });
+        DB::table('groups')->update(['business_id' => 1]);
+        Schema::table('groups', function (Blueprint $table) {
+            $table->unsignedBigInteger('business_id')->nullable(false)->change();
             });
-            DB::table('groups')->update(['business_id' => 1]);
             Schema::table('groups', function (Blueprint $table) {
-                $table->unsignedBigInteger('business_id')->nullable(false)->change();
-            });
-            Schema::table('groups', function (Blueprint $table) {
-                $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
-            });
+            $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
+        });
         }
 
         // Invoices
         if (!Schema::hasColumn('invoices', 'business_id')) {
-            Schema::table('invoices', function (Blueprint $table) {
-                $table->unsignedBigInteger('business_id')->after('id')->nullable();
+        Schema::table('invoices', function (Blueprint $table) {
+            $table->unsignedBigInteger('business_id')->after('id')->nullable();
+        });
+        DB::table('invoices')->update(['business_id' => 1]);
+        Schema::table('invoices', function (Blueprint $table) {
+            $table->unsignedBigInteger('business_id')->nullable(false)->change();
             });
-            DB::table('invoices')->update(['business_id' => 1]);
             Schema::table('invoices', function (Blueprint $table) {
-                $table->unsignedBigInteger('business_id')->nullable(false)->change();
-            });
-            Schema::table('invoices', function (Blueprint $table) {
-                $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
-            });
+            $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
+        });
         }
     }
 

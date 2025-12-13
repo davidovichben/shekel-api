@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Debt;
 use App\Models\MemberCreditCard;
 use App\Models\Receipt;
 use Illuminate\Http\JsonResponse;
@@ -9,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Mpdf\Mpdf;
 
 class BillingController extends Controller
@@ -71,6 +73,9 @@ class BillingController extends Controller
                 'description' => 'nullable|string|max:500',
                 'type' => 'nullable|in:vows,community_donations,external_donations,ascensions,online_donations,membership_fees,other',
                 'receipt_pdf' => 'required|file|mimes:pdf|max:51200', // 50MB max
+                'debt_id' => 'nullable|integer|exists:debts,id',
+                'debt_ids' => 'nullable|array',
+                'debt_ids.*' => 'integer|exists:debts,id',
             ]);
         } else {
             // JSON request (backward compatible)
@@ -80,10 +85,85 @@ class BillingController extends Controller
                 'description' => 'nullable|string|max:500',
                 'type' => 'nullable|in:vows,community_donations,external_donations,ascensions,online_donations,membership_fees,other',
                 'createReceipt' => 'nullable|boolean',
+                'debt_id' => 'nullable|integer|exists:debts,id',
+                'debt_ids' => 'nullable|array',
+                'debt_ids.*' => 'integer|exists:debts,id',
             ]);
         }
 
-        $creditCard = MemberCreditCard::findOrFail($validated['credit_card_id']);
+        $creditCard = MemberCreditCard::with('member')->findOrFail($validated['credit_card_id']);
+        
+        // Handle debt payment validation and processing
+        $debts = null;
+        $paidDebts = [];
+        
+        if (!empty($validated['debt_id']) || !empty($validated['debt_ids'])) {
+            // Get debt IDs (single or multiple)
+            $debtIds = !empty($validated['debt_ids']) 
+                ? $validated['debt_ids'] 
+                : [$validated['debt_id']];
+            
+            // Load debts with member relationship
+            $debts = Debt::whereIn('id', $debtIds)
+                ->where('business_id', current_business_id())
+                ->with('member')
+                ->get();
+            
+            if ($debts->count() !== count($debtIds)) {
+                return response()->json([
+                    'message' => 'One or more debts not found'
+                ], 404);
+            }
+            
+            // Validate all debts belong to the same member as the credit card
+            $creditCardMemberId = $creditCard->member_id;
+            foreach ($debts as $debt) {
+                if ($debt->member_id !== $creditCardMemberId) {
+                    return response()->json([
+                        'message' => 'Debt does not belong to the credit card owner',
+                        'debt_id' => $debt->id
+                    ], 422);
+                }
+                
+                // Validate debt is pending (not already paid)
+                if ($debt->status !== 'pending') {
+                    return response()->json([
+                        'message' => 'Debt is not pending (already paid or cancelled)',
+                        'debt_id' => $debt->id,
+                        'status' => $debt->status
+                    ], 422);
+                }
+            }
+            
+            // Calculate expected amount
+            $debtsSubtotal = (float) $debts->sum('amount');
+            
+            if (count($debtIds) === 1) {
+                // Single debt: amount must match exactly
+                $expectedAmount = $debtsSubtotal;
+                if (abs((float)$validated['amount'] - $expectedAmount) > 0.01) {
+                    return response()->json([
+                        'message' => 'Amount does not match debt amount',
+                        'expected' => number_format($expectedAmount, 2, '.', ''),
+                        'provided' => number_format((float)$validated['amount'], 2, '.', '')
+                    ], 422);
+                }
+            } else {
+                // Bulk debts: amount must match sum + 17% VAT
+                $vatRate = 0.17;
+                $expectedAmount = $debtsSubtotal * (1 + $vatRate);
+                
+                if (abs((float)$validated['amount'] - $expectedAmount) > 0.01) {
+                    return response()->json([
+                        'message' => 'Amount does not match calculated total (debts + 17% VAT)',
+                        'debts_subtotal' => number_format($debtsSubtotal, 2, '.', ''),
+                        'vat_amount' => number_format($debtsSubtotal * $vatRate, 2, '.', ''),
+                        'expected_total' => number_format($expectedAmount, 2, '.', ''),
+                        'provided' => number_format((float)$validated['amount'], 2, '.', '')
+                    ], 422);
+                }
+            }
+        }
 
         // Mock: Simulate processing delay
         usleep(500000); // 0.5 second delay
@@ -101,6 +181,26 @@ class BillingController extends Controller
         }
         
         $amount = (float) $validated['amount'];
+        
+        // Update debt statuses after successful charge
+        if ($debts && $debts->isNotEmpty()) {
+            DB::beginTransaction();
+            try {
+                foreach ($debts as $debt) {
+                    $debt->update(['status' => 'paid']);
+                    $paidDebts[] = [
+                        'id' => $debt->id,
+                        'amount' => number_format((float)$debt->amount, 2, '.', ''),
+                        'description' => $debt->description,
+                    ];
+                }
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('Debt status update error: ' . $e->getMessage());
+                // Continue with receipt creation even if debt update fails
+            }
+        }
 
         // Create receipt only if createReceipt is true OR if PDF is uploaded
         $shouldCreateReceipt = $isMultipart || (!empty($validated['createReceipt']) && $validated['createReceipt']);
@@ -173,6 +273,11 @@ class BillingController extends Controller
                 'status' => 'completed',
             ],
         ];
+
+        // Add paid debts information
+        if (!empty($paidDebts)) {
+            $response['paidDebts'] = $paidDebts;
+        }
 
         if ($receipt) {
             $response['receipt'] = [
