@@ -74,4 +74,15 @@ class BusinessController extends Controller
 
         return response()->json(['message_template' => $defaultTemplate]);
     }
+
+    /**
+     * Soft delete the business by setting is_active to false.
+     */
+    public function destroy()
+    {
+        $business = Business::findOrFail(current_business_id());
+        $business->update(['is_active' => false]);
+
+        return response()->json(['message' => 'Business deleted successfully']);
+    }
 }

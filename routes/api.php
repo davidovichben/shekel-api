@@ -29,6 +29,7 @@ Route::middleware('auth.jwt')->group(function () {
     // Business routes
     Route::get('business', [BusinessController::class, 'show']);
     Route::put('business', [BusinessController::class, 'update']);
+    Route::delete('business', [BusinessController::class, 'destroy']);
     Route::put('business/message-template', [BusinessController::class, 'updateMessageTemplate']);
     Route::post('business/message-template/reset', [BusinessController::class, 'resetMessageTemplate']);
 

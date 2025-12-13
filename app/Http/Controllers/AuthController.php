@@ -20,9 +20,15 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::with('business')->where('email', $request->email)->first();
+        $user = User::with('business.package')->where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        if (!$user->business->is_active) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
@@ -40,6 +46,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'avatar' => $user->avatar,
             ],
+            'package' => $user->business->package,
             'access_token' => $token,
             'token_type' => 'Bearer',
         ]);

@@ -32,6 +32,7 @@ class Business extends Model
         'synagogue_address',
         'synagogue_email',
         'message_template',
+        'is_active',
     ];
 
     /**
@@ -43,6 +44,7 @@ class Business extends Model
         'id',
         'created_at',
         'updated_at',
+        'is_active',
     ];
 
     /**
