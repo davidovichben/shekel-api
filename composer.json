@@ -12,6 +12,7 @@
         "laravel/sanctum": "^4.2",
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
+        "mailersend/laravel-driver": "^2.0",
         "mpdf/mpdf": "^8.2"
     },
     "require-dev": {

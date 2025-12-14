@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\DebtsExport;
 use App\Exports\DebtsPdfExport;
 use App\Models\Debt;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -293,6 +294,13 @@ class DebtController extends Controller
             'last_reminder_sent_at' => 'nullable|date',
         ])->validate();
 
+        // Prevent editing amount after debt has been paid
+        if ($debt->status === 'paid' && isset($validated['amount']) && (float) $validated['amount'] !== (float) $debt->amount) {
+            return response()->json([
+                'message' => 'Cannot change amount of a paid debt',
+            ], 422);
+        }
+
         $debt->update($validated);
         $debt->load('member');
         $data = $this->formatDebtDetails($debt);
@@ -313,13 +321,29 @@ class DebtController extends Controller
      * Send a reminder for the specified debt.
      * Updates the last_reminder_sent_at timestamp.
      */
-    public function sendReminder(Debt $debt)
+    public function sendReminder(Request $request, Debt $debt, NotificationService $notification)
     {
+        $validated = $request->validate([
+            'message' => 'required|string|max:1000',
+        ]);
+
+        $debt->load('member');
+
+        if (!$debt->member) {
+            return response()->json(['error' => 'Debt has no associated member'], 422);
+        }
+
+        $result = $notification->sendToMember($debt->member, $validated['message']);
+
+        if (!$result['success']) {
+            $statusCode = $result['error'] === 'Member has no mobile number' ? 422 : 500;
+            return response()->json(['error' => $result['error']], $statusCode);
+        }
+
         $debt->update([
             'last_reminder_sent_at' => now(),
         ]);
 
-        $debt->load('member');
         $data = $this->formatDebtDetails($debt);
 
         return response()->json($data);
@@ -433,6 +457,7 @@ class DebtController extends Controller
             'dueDate' => 'due_date', // Support both for backward compatibility
             'status' => 'status',
             'type' => 'type',
+            'description' => 'description',
         ];
 
         $dbColumn = $sortMap[$sortColumn] ?? 'created_at';
@@ -487,6 +512,17 @@ class DebtController extends Controller
             }
         }
 
+        // Search by member full name or debt description
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->join('members', 'debts.member_id', '=', 'members.id')
+                  ->where(function ($q) use ($search) {
+                      $q->whereRaw("CONCAT(members.first_name, ' ', members.last_name) LIKE ?", ["%{$search}%"])
+                        ->orWhere('debts.description', 'like', "%{$search}%");
+                  })
+                  ->select('debts.*');
+        }
+
         return $query;
     }
 
@@ -531,6 +567,16 @@ class DebtController extends Controller
             }
         }
 
+        // Search by member full name or debt description
+        if ($request->filled('search')) {
+            $needsMemberJoin = true;
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw("CONCAT(members.first_name, ' ', members.last_name) LIKE ?", ["%{$search}%"])
+                  ->orWhere('debts.description', 'like', "%{$search}%");
+            });
+        }
+
         // Handle sorting - check if we need member join for name sorting
         $sortBy = $request->get('sort_by');
         if ($sortBy === 'name') {
@@ -571,6 +617,7 @@ class DebtController extends Controller
                 'dueDate' => 'debts.due_date',
                 'status' => 'debts.status',
                 'type' => 'debts.type',
+                'description' => 'debts.description',
         ];
 
             $dbColumn = $sortMap[$sortColumn] ?? 'debts.created_at';
@@ -590,6 +637,7 @@ class DebtController extends Controller
                 'date' => 'debts.due_date',
                 'amount' => 'debts.amount',
                 'name' => 'members.first_name',
+                'description' => 'debts.description',
             ];
 
             $dbColumn = $sortMap[$sortBy] ?? 'debts.created_at';

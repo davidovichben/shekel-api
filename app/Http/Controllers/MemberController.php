@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\MembersExport;
 use App\Exports\MembersPdfExport;
 use App\Models\Member;
-use App\Services\SmsService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
@@ -72,20 +72,17 @@ class MemberController extends Controller
     /**
      * Send an SMS notification to a member.
      */
-    public function notify(Request $request, Member $member, SmsService $sms)
+    public function notify(Request $request, Member $member, NotificationService $notification)
     {
         $validated = $request->validate([
             'message' => 'required|string|max:1000',
         ]);
 
-        if (empty($member->mobile)) {
-            return response()->json(['error' => 'Member has no mobile number'], 422);
-        }
+        $result = $notification->sendToMember($member, $validated['message']);
 
-        $success = $sms->send($member->mobile, $validated['message']);
-
-        if (!$success) {
-            return response()->json(['error' => 'Failed to send SMS'], 500);
+        if (!$result['success']) {
+            $statusCode = $result['error'] === 'Member has no mobile number' ? 422 : 500;
+            return response()->json(['error' => $result['error']], $statusCode);
         }
 
         return response()->json(['message' => 'SMS sent successfully']);
@@ -94,7 +91,7 @@ class MemberController extends Controller
     /**
      * Send an SMS notification to multiple members.
      */
-    public function notifyMany(Request $request, SmsService $sms)
+    public function notifyMany(Request $request, NotificationService $notification)
     {
         $validated = $request->validate([
             'ids' => 'required|array',
@@ -112,7 +109,8 @@ class MemberController extends Controller
         $failed = 0;
 
         foreach ($members as $member) {
-            if ($sms->send($member->mobile, $validated['message'])) {
+            $result = $notification->sendToMember($member, $validated['message']);
+            if ($result['success']) {
                 $sent++;
             } else {
                 $failed++;
